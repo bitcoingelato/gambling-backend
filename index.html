@@ -5,86 +5,168 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bitcoin Gelato</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
-        .nav { display: flex; justify-content: space-between; align-items: center; }
-        .game-section, .login-section { margin: 20px 0; }
-        .crash-controls button { margin: 5px; }
-        #crashMultiplier { font-size: 2em; color: green; }
-        .hidden { display: none; }
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #2c3e50;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+        }
+        .nav button {
+            background: #3498db;
+            border: none;
+            padding: 8px 15px;
+            color: white;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        .nav button:hover { background: #2980b9; }
+        #userInfo { display: flex; align-items: center; gap: 10px; }
+        .game-menu {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            justify-content: center;
+        }
+        .game-menu button {
+            background: #e74c3c;
+            border: none;
+            padding: 10px 20px;
+            color: white;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        .game-menu button:hover { background: #c0392b; }
+        .section { display: none; padding: 20px; background: white; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .section.active { display: block; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; }
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+        .error { color: #e74c3c; font-size: 0.9em; margin-top: 5px; }
+        button { background: #2ecc71; border: none; padding: 10px 20px; color: white; cursor: pointer; border-radius: 3px; }
+        button:hover { background: #27ae60; }
+        .h-captcha { margin: 10px 0; }
+        #crashMultiplier { font-size: 2em; color: #27ae60; }
+        .crash-controls { margin: 10px 0; }
     </style>
+    <script src="https://hcaptcha.com/1/api.js" async defer></script>
 </head>
 <body>
-    <div class="nav">
-        <div class="auth">
-            <button id="loginBtn">Login</button>
-            <button id="signupBtn">Sign Up</button>
-        </div>
-        <div id="userInfo" class="hidden">
-            Welcome, <span id="username"></span> | Balance: <span id="balance">0.0100 BTC (Fun Mode)</span>
-            <button id="logoutBtn">Logout</button>
-        </div>
-    </div>
-
-    <div class="game-menu">
-        <button onclick="showGame('crash')">Crash</button>
-        <button onclick="showGame('coinflip')">Coinflip</button>
-        <button onclick="showGame('roulette')">Roulette</button>
-        <button onclick="showGame('threecp')">3CP</button>
-        <button onclick="showGame('account')">Account</button>
-    </div>
-
-    <div id="gameArea">
-        <!-- Login Section -->
-        <div id="loginSection" class="login-section hidden">
-            <h2>Login</h2>
-            <input type="text" id="loginUsername" placeholder="Username">
-            <input type="password" id="loginPassword" placeholder="Password">
-            <button onclick="login()">Login</button>
-        </div>
-
-        <!-- Signup Section -->
-        <div id="signupSection" class="login-section hidden">
-            <h2>Sign Up</h2>
-            <input type="text" id="signupUsername" placeholder="Username">
-            <input type="password" id="signupPassword" placeholder="Password">
-            <button onclick="signup()">Sign Up</button>
-        </div>
-
-        <!-- Crash Game -->
-        <div id="crashSection" class="game-section hidden">
-            <h2>Crash</h2>
-            <div>Multiplier: <span id="crashMultiplier">1.00x</span></div>
-            <input type="number" id="crashBet" placeholder="Bet Amount (BTC)" min="0.001" step="0.001" value="0.001">
-            <div class="crash-controls">
-                <button onclick="placeBet()">Place Bet</button>
-                <button id="cancelBetBtn" onclick="cancelBet()" disabled>Cancel Bet</button>
-                <button id="cashoutBtn" onclick="cashOut()" disabled>Cash Out</button>
-                <button onclick="verifyFairness()">Verify Fairness</button>
+    <div class="container">
+        <div class="nav">
+            <div class="auth">
+                <button id="loginBtn">Login</button>
+                <button id="signupBtn">Sign Up</button>
             </div>
-            <div>Next round in <span id="crashTimer">9s</span></div>
-            <div>Round History
-                <table>
-                    <tr><th>Crash Point</th><th>Round #</th><th>Bet</th><th>Verify</th><th>Time</th></tr>
-                </table>
+            <div id="userInfo" class="hidden">
+                Welcome, <span id="username"></span> | Balance: <span id="balance">0.0000 BTC (Fun Mode)</span>
+                <button id="logoutBtn">Logout</button>
             </div>
         </div>
 
-        <!-- Other Games (Placeholder) -->
-        <div id="coinflipSection" class="game-section hidden">
-            <h2>Coinflip</h2>
-            <!-- Add coinflip content later -->
+        <div class="game-menu">
+            <button onclick="showSection('crash')">Crash</button>
+            <button onclick="showSection('coinflip')">Coinflip</button>
+            <button onclick="showSection('roulette')">Roulette</button>
+            <button onclick="showSection('threecp')">3CP</button>
+            <button onclick="showSection('account')">Account</button>
         </div>
-        <div id="rouletteSection" class="game-section hidden">
-            <h2>Roulette</h2>
-            <!-- Add roulette content later -->
-        </div>
-        <div id="threecpSection" class="game-section hidden">
-            <h2>3 Card Poker (3CP)</h2>
-            <!-- Add 3CP content later -->
-        </div>
-        <div id="accountSection" class="game-section hidden">
-            <h2>Account</h2>
-            <!-- Add account content later -->
+
+        <div id="gameArea">
+            <!-- Login Section -->
+            <div id="loginSection" class="section">
+                <h2>Login</h2>
+                <div class="form-group">
+                    <label for="loginUsername">Username</label>
+                    <input type="text" id="loginUsername" placeholder="Enter Username">
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" placeholder="Enter Password">
+                </div>
+                <button onclick="login()">Login</button>
+                <div id="loginError" class="error"></div>
+            </div>
+
+            <!-- Signup Section -->
+            <div id="signupSection" class="section">
+                <h2>Sign Up</h2>
+                <div class="form-group">
+                    <label for="signupUsername">Username</label>
+                    <input type="text" id="signupUsername" placeholder="Choose a Username">
+                    <div id="usernameError" class="error"></div>
+                </div>
+                <div class="form-group">
+                    <label for="signupEmail">Email</label>
+                    <input type="email" id="signupEmail" placeholder="Enter Email">
+                    <div id="emailError" class="error"></div>
+                </div>
+                <div class="form-group">
+                    <label for="signupPassword">Password</label>
+                    <input type="password" id="signupPassword" placeholder="Choose a Password">
+                    <div id="passwordError" class="error"></div>
+                </div>
+                <div class="h-captcha" data-sitekey="your-hcaptcha-site-key"></div> <!-- Replace with your Site Key -->
+                <div id="captchaError" class="error"></div>
+                <button onclick="signup()">Sign Up</button>
+                <div id="signupResult" class="error"></div>
+            </div>
+
+            <!-- Crash Game -->
+            <div id="crashSection" class="section">
+                <h2>Crash</h2>
+                <div>Multiplier: <span id="crashMultiplier">1.00x</span></div>
+                <div class="form-group">
+                    <label for="crashBet">Bet Amount (BTC)</label>
+                    <input type="number" id="crashBet" placeholder="Enter Bet" min="0.001" step="0.001" value="0.001">
+                </div>
+                <div class="crash-controls">
+                    <button onclick="placeBet()">Place Bet</button>
+                    <button id="cancelBetBtn" onclick="cancelBet()" disabled>Cancel Bet</button>
+                    <button id="cashoutBtn" onclick="cashOut()" disabled>Cash Out</button>
+                    <button onclick="verifyFairness()">Verify Fairness</button>
+                </div>
+                <div>Next round in <span id="crashTimer">9s</span></div>
+                <div>Round History
+                    <table>
+                        <tr><th>Crash Point</th><th>Round #</th><th>Bet</th><th>Verify</th><th>Time</th></tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Other Games (Placeholder) -->
+            <div id="coinflipSection" class="section">
+                <h2>Coinflip</h2>
+            </div>
+            <div id="rouletteSection" class="section">
+                <h2>Roulette</h2>
+            </div>
+            <div id="threecpSection" class="section">
+                <h2>3 Card Poker (3CP)</h2>
+            </div>
+            <div id="accountSection" class="section">
+                <h2>Account</h2>
+            </div>
         </div>
     </div>
 
@@ -94,9 +176,9 @@
         let betPlaced = false;
         let currentMultiplier = 1.0;
 
-        function showGame(game) {
-            document.querySelectorAll('.game-section').forEach(el => el.classList.add('hidden'));
-            document.getElementById(`${game}Section`).classList.remove('hidden');
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
         }
 
         function login() {
@@ -109,29 +191,71 @@
             })
             .then(response => response.json())
             .then(data => {
+                const errorDiv = document.getElementById('loginError');
                 if (data.success) {
                     currentUser = username;
                     document.getElementById('userInfo').classList.remove('hidden');
                     document.getElementById('username').textContent = username;
-                    document.getElementById('balance').textContent = `${data.balance} BTC (Fun Mode)`;
-                    document.getElementById('loginSection').classList.add('hidden');
-                    document.querySelectorAll('.login-section').forEach(el => el.classList.add('hidden'));
+                    document.getElementById('balance').textContent = `${data.balance || 0} BTC (Fun Mode)`;
+                    showSection('crash');
+                    errorDiv.textContent = '';
                 } else {
-                    alert(data.message);
+                    errorDiv.textContent = data.message;
                 }
             });
         }
 
         function signup() {
             const username = document.getElementById('signupUsername').value;
+            const email = document.getElementById('signupEmail').value;
             const password = document.getElementById('signupPassword').value;
+            const captchaToken = document.querySelector('.h-captcha').dataset.hcaptchaResponse || '';
+
+            // Clear previous errors
+            ['usernameError', 'emailError', 'passwordError', 'captchaError', 'signupResult'].forEach(id => {
+                document.getElementById(id).textContent = '';
+            });
+
+            // Client-side validation
+            let hasError = false;
+            if (!username) {
+                document.getElementById('usernameError').textContent = 'Username is required';
+                hasError = true;
+            }
+            if (!email) {
+                document.getElementById('emailError').textContent = 'Email is required';
+                hasError = true;
+            }
+            if (!password) {
+                document.getElementById('passwordError').textContent = 'Password is required';
+                hasError = true;
+            } else if (password.length < 6) {
+                document.getElementById('passwordError').textContent = 'Password must be at least 6 characters';
+                hasError = true;
+            }
+            if (!captchaToken) {
+                document.getElementById('captchaError').textContent = 'Please complete the CAPTCHA';
+                hasError = true;
+            }
+
+            if (hasError) return;
+
             fetch('https://desolate-shore-72677-e0fe07c2f233.herokuapp.com/api/signup', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
+                body: JSON.stringify({ username, email, password, captchaToken })
             })
             .then(response => response.json())
-            .then(data => alert(data.message));
+            .then(data => {
+                const resultDiv = document.getElementById('signupResult');
+                if (data.success) {
+                    resultDiv.textContent = data.message;
+                    resultDiv.style.color = 'green';
+                } else {
+                    resultDiv.textContent = data.message;
+                    resultDiv.style.color = 'red';
+                }
+            });
         }
 
         function startCrashGame() {
@@ -154,10 +278,10 @@
 
         function simulateCrash() {
             if (betPlaced) {
-                currentMultiplier += 0.1; // Simulate increasing multiplier
+                currentMultiplier += 0.1;
                 document.getElementById('crashMultiplier').textContent = `${currentMultiplier.toFixed(2)}x`;
                 document.getElementById('crashMultiplier').style.color = 'red';
-                if (Math.random() < 0.1) { // 10% chance to crash
+                if (Math.random() < 0.1) {
                     endCrash();
                 } else {
                     setTimeout(simulateCrash, 100);
@@ -224,7 +348,6 @@
 
         function cancelBet() {
             if (betPlaced) {
-                // Refund bet (simplified; in practice, track and refund)
                 fetch('https://desolate-shore-72677-e0fe07c2f233.herokuapp.com/api/deposit', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -247,14 +370,9 @@
             alert('Fairness verification: Simulated for now. Use server/client seeds in production.');
         }
 
-        // Initial setup
-        document.getElementById('loginBtn').addEventListener('click', () => {
-            showGame('loginSection');
-        });
-        document.getElementById('signupBtn').addEventListener('click', () => {
-            showGame('signupSection');
-        });
-        showGame('crash'); // Default to crash game
+        document.getElementById('loginBtn').addEventListener('click', () => showSection('loginSection'));
+        document.getElementById('signupBtn').addEventListener('click', () => showSection('signupSection'));
+        showSection('crash');
         startCrashGame();
     </script>
 </body>
