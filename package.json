@@ -6,13 +6,19 @@
     "start": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["gambling", "backend", "node"],
+  "keywords": [
+    "gambling",
+    "backend",
+    "node"
+  ],
   "author": "bitcoingelato@protonmail.com",
   "license": "ISC",
   "description": "A backend for a gambling application with user authentication and balance tracking",
   "dependencies": {
+    "bcrypt": "^5.1.0",
+    "btcpay": "^0.2.5",
+    "dotenv": "^17.2.1",
     "express": "^4.17.1",
-    "mongodb": "^6.3.0",
-    "bcrypt": "^5.1.0"
+    "mongodb": "^6.3.0"
   }
 }
