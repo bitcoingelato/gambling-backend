@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bitcoin Gelato Casino</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body { font-family: Arial; background: #000; color: #fff; margin: 0; padding: 10px; }
         .container { max-width: 600px; margin: 0 auto; }
@@ -61,7 +61,7 @@
         </div>
         <div class="tabs">
             <a id="tabCrash" class="tab active">Crash</a>
-            <!-- You can add other tabs for Coinflip, Roulette, etc. -->
+            <!-- Extend with other game tabs as needed -->
         </div>
         <div class="container">
             <div id="crashSection" class="section">
@@ -81,233 +81,270 @@
             </div>
         </div>
     </div>
-    <script>
-        // ==== CONFIG ====
-        const API = 'https://desolate-shore-72677-e0fe07c2f233.herokuapp.com';
-        let authToken = localStorage.getItem('token') || null;
-        let crashStatePoller = null;
-        let currentCrashRoundId = null;
-        let userBetThisRound = false;
-        let betAmount = 0;
+<script>
+// ==== CONFIG ====
+// Your backend URL
+const API = 'https://desolate-shore-72677-e0fe07c2f233.herokuapp.com';
 
-        // ==== MODAL/Login/Signup UI ====
-        function showModal(tab) {
-            document.getElementById('modal').classList.remove('hidden');
-            document.getElementById('gameInterface').classList.add('hidden');
-            if (tab === 'login') {
-                document.getElementById('loginForm').classList.remove('hidden');
-                document.getElementById('signupForm').classList.add('hidden');
-                document.getElementById('loginTab').classList.add('active');
-                document.getElementById('signupTab').classList.remove('active');
-            } else {
-                document.getElementById('loginForm').classList.add('hidden');
-                document.getElementById('signupForm').classList.remove('hidden');
-                document.getElementById('loginTab').classList.remove('active');
-                document.getElementById('signupTab').classList.add('active');
-            }
-        }
-        document.getElementById('loginTab').onclick = () => showModal('login');
-        document.getElementById('signupTab').onclick = () => showModal('signup');
+// ==== State ====
+let authToken = localStorage.getItem('token') || null;
+let crashStatePoller = null;
+let currentCrashRoundId = null;
+let userBetThisRound = false;
+let betAmount = 0;
 
-        // ==== LOGIN ====
-        document.getElementById('loginButton').onclick = async function() {
-            const username = document.getElementById('loginUsername').value.trim();
-            const password = document.getElementById('loginPassword').value;
-            const errorEl = document.getElementById('loginError');
-            errorEl.classList.add('hidden');
-            errorEl.textContent = '';
-            try {
-                const res = await fetch(`${API}/api/login`, {
-                    method: 'POST',
-                    headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({username, password})
-                });
-                const data = await res.json();
-                if (data.success && data.token) {
-                    authToken = data.token;
-                    localStorage.setItem('token', authToken);
-                    localStorage.setItem('username', data.username);
-                    showGame();
-                    fetchBalance();
-                } else {
-                    errorEl.textContent = data.message || 'Login failed.';
-                    errorEl.classList.remove('hidden');
-                }
-            } catch (e) {
-                errorEl.textContent = 'Network error.';
-                errorEl.classList.remove('hidden');
-            }
-        };
+// ==== MODAL/Login/Signup UI ====
+function showModal(tab) {
+    document.getElementById('modal').classList.remove('hidden');
+    document.getElementById('gameInterface').classList.add('hidden');
+    if (tab === 'login') {
+        document.getElementById('loginForm').classList.remove('hidden');
+        document.getElementById('signupForm').classList.add('hidden');
+        document.getElementById('loginTab').classList.add('active');
+        document.getElementById('signupTab').classList.remove('active');
+    } else {
+        document.getElementById('loginForm').classList.add('hidden');
+        document.getElementById('signupForm').classList.remove('hidden');
+        document.getElementById('loginTab').classList.remove('active');
+        document.getElementById('signupTab').classList.add('active');
+    }
+}
+document.getElementById('loginTab').onclick = () => showModal('login');
+document.getElementById('signupTab').onclick = () => showModal('signup');
 
-        // ==== SIGNUP ====
-        document.getElementById('signupButton').onclick = async function() {
-            const username = document.getElementById('signupUsername').value.trim();
-            const email = document.getElementById('signupEmail').value.trim();
-            const password = document.getElementById('signupPassword').value;
-            const errorEl = document.getElementById('signupError');
-            errorEl.classList.add('hidden');
-            errorEl.textContent = '';
-            if (!username || !email || !password) {
-                errorEl.textContent = 'All fields required.';
-                errorEl.classList.remove('hidden');
-                return;
-            }
-            if (password.length < 6) {
-                errorEl.textContent = 'Password must be at least 6 characters.';
-                errorEl.classList.remove('hidden');
-                return;
-            }
-            try {
-                const res = await fetch(`${API}/api/signup`, {
-                    method: 'POST',
-                    headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({username, email, password})
-                });
-                const data = await res.json();
-                if (data.success) {
-                    errorEl.textContent = 'Signup successful! Please login.';
-                    errorEl.style.color = '#00FF00';
-                } else {
-                    errorEl.textContent = data.message || 'Signup failed.';
-                    errorEl.classList.remove('hidden');
-                }
-            } catch (e) {
-                errorEl.textContent = 'Network error.';
-                errorEl.classList.remove('hidden');
-            }
-        };
+// ==== LOGIN HANDLER ====
+document.getElementById('loginButton').onclick = async function() {
+    console.log("Login button clicked");
+    const username = document.getElementById('loginUsername').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const errorEl = document.getElementById('loginError');
+    errorEl.classList.add('hidden');
+    errorEl.textContent = '';
+    console.log("Attempting login with:", username);
+    try {
+        const res = await fetch(`${API}/api/login`, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({username, password})
+        });
+        console.log("Fetch sent, status:", res.status);
 
-        // ==== LOGOUT ====
-        document.getElementById('logoutButton').onclick = function() {
-            localStorage.removeItem('token');
-            localStorage.removeItem('username');
-            authToken = null;
-            showModal('login');
-            if (crashStatePoller) clearInterval(crashStatePoller);
-        };
-
-        // ==== SHOW GAME ====
-        function showGame() {
-            document.getElementById('modal').classList.add('hidden');
-            document.getElementById('gameInterface').classList.remove('hidden');
-            document.getElementById('headerUsername').textContent = localStorage.getItem('username') || 'Guest';
-            // Start polling crash state
-            pollCrashState();
-            if (crashStatePoller) clearInterval(crashStatePoller);
-            crashStatePoller = setInterval(pollCrashState, 1000);
+        let data;
+        try {
+            data = await res.json();
+            console.log("Fetch response:", data);
+        } catch(jsonErr) {
+            console.error("Failed to parse JSON from login response", jsonErr);
+            errorEl.textContent = 'Bad server response (not JSON)';
+            errorEl.classList.remove('hidden');
+            return;
         }
 
-        // ==== FETCH BALANCE ====
-        async function fetchBalance() {
-            if (!authToken) return;
-            try {
-                const res = await fetch(`${API}/api/balance`, {
-                    method: 'GET',
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                const data = await res.json();
-                if (data.success) {
-                    document.getElementById('balance').textContent = (data.balance || 0).toFixed(4);
-                }
-            } catch (e) { }
+        if (data.success && data.token) {
+            console.log("Login success, received token:", data.token);
+            authToken = data.token;
+            localStorage.setItem('token', authToken);
+            localStorage.setItem('username', data.username);
+            showGame();
+            fetchBalance();
+        } else {
+            console.warn("Login failed:", data.message);
+            errorEl.textContent = data.message || 'Login failed.';
+            errorEl.classList.remove('hidden');
         }
+    } catch (e) {
+        console.error("Network or code error during login", e);
+        errorEl.textContent = 'Network error.';
+        errorEl.classList.remove('hidden');
+    }
+};
 
-        // ==== CRASH GAME LOGIC ====
-        function setCrashUI(state) {
-            document.getElementById('crashError').textContent = '';
-            if (!state) {
-                document.getElementById('multiplier').textContent = 'Waiting...';
-                document.getElementById('crashTimer').textContent = 'Waiting for next round...';
-                document.getElementById('placeBetButton').disabled = true;
-                document.getElementById('cashoutButton').disabled = true;
-                currentCrashRoundId = null;
-                userBetThisRound = false;
-                return;
-            }
-            document.getElementById('multiplier').textContent = (state.multiplier || 1).toFixed(2) + 'x';
-            if (state.status === 'running') {
-                document.getElementById('crashTimer').textContent = 'Round in progress';
-                document.getElementById('placeBetButton').disabled = userBetThisRound;
-                document.getElementById('cashoutButton').disabled = !userBetThisRound;
-            } else {
-                document.getElementById('crashTimer').textContent = 'Next round in a few seconds...';
-                document.getElementById('placeBetButton').disabled = true;
-                document.getElementById('cashoutButton').disabled = true;
-                userBetThisRound = false;
-            }
-            if (currentCrashRoundId !== state.roundId) {
-                // New round started
-                currentCrashRoundId = state.roundId;
-                userBetThisRound = false;
-            }
+// ==== SIGNUP HANDLER (AUTOMATIC LOGIN) ====
+document.getElementById('signupButton').onclick = async function() {
+    const username = document.getElementById('signupUsername').value.trim();
+    const email = document.getElementById('signupEmail').value.trim();
+    const password = document.getElementById('signupPassword').value;
+    const errorEl = document.getElementById('signupError');
+    errorEl.classList.add('hidden');
+    errorEl.textContent = '';
+    errorEl.style.color = '#FF0000';
+
+    if (!username || !email || !password) {
+        errorEl.textContent = 'All fields required.';
+        errorEl.classList.remove('hidden');
+        return;
+    }
+    if (password.length < 6) {
+        errorEl.textContent = 'Password must be at least 6 characters.';
+        errorEl.classList.remove('hidden');
+        return;
+    }
+
+    try {
+        console.log("Attempting signup with:", username, email);
+        const res = await fetch(`${API}/api/signup`, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({username, email, password})
+        });
+        const data = await res.json();
+        console.log("Signup response:", data);
+
+        if (data.success) {
+            errorEl.style.color = '#00FF00';
+            errorEl.textContent = 'Signup successful! Logging you in...';
+            errorEl.classList.remove('hidden');
+            // Autofill and auto-login
+            document.getElementById('loginUsername').value = username;
+            document.getElementById('loginPassword').value = password;
+            setTimeout(() => {
+                document.getElementById('loginTab').click();
+                document.getElementById('loginButton').click();
+            }, 500);
+        } else {
+            errorEl.textContent = data.message || 'Signup failed.';
+            errorEl.classList.remove('hidden');
         }
+    } catch (e) {
+        console.error("Error during signup:", e);
+        errorEl.textContent = 'Network error.';
+        errorEl.classList.remove('hidden');
+    }
+};
 
-        async function pollCrashState() {
-            try {
-                const res = await fetch(`${API}/api/crash/state`);
-                const data = await res.json();
-                if (data.success) setCrashUI(data.round);
-            } catch (e) {
-                document.getElementById('crashError').textContent = 'Cannot connect to server.';
-            }
+// ==== LOGOUT ====
+document.getElementById('logoutButton').onclick = function() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('username');
+    authToken = null;
+    showModal('login');
+    if (crashStatePoller) clearInterval(crashStatePoller);
+};
+
+// ==== SHOW GAME ====
+function showGame() {
+    document.getElementById('modal').classList.add('hidden');
+    document.getElementById('gameInterface').classList.remove('hidden');
+    document.getElementById('headerUsername').textContent = localStorage.getItem('username') || 'Guest';
+    pollCrashState();
+    if (crashStatePoller) clearInterval(crashStatePoller);
+    crashStatePoller = setInterval(pollCrashState, 1000);
+}
+
+// ==== FETCH BALANCE ====
+async function fetchBalance() {
+    if (!authToken) return;
+    try {
+        const res = await fetch(`${API}/api/balance`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('balance').textContent = (data.balance || 0).toFixed(4);
         }
+    } catch (e) {
+        console.error("Error fetching balance:", e);
+    }
+}
 
-        document.getElementById('placeBetButton').onclick = async function() {
-            const amt = parseFloat(document.getElementById('crashBetAmount').value);
-            if (!amt || amt <= 0) return alert('Enter a valid bet.');
-            try {
-                const res = await fetch(`${API}/api/crash/bet`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${authToken}`
-                    },
-                    body: JSON.stringify({ amount: amt })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    userBetThisRound = true;
-                    betAmount = amt;
-                    fetchBalance();
-                } else {
-                    alert(data.message || 'Bet failed.');
-                }
-            } catch (e) {
-                alert('Network error.');
-            }
-        };
+// ==== CRASH GAME LOGIC ====
+function setCrashUI(state) {
+    document.getElementById('crashError').textContent = '';
+    if (!state) {
+        document.getElementById('multiplier').textContent = 'Waiting...';
+        document.getElementById('crashTimer').textContent = 'Waiting for next round...';
+        document.getElementById('placeBetButton').disabled = true;
+        document.getElementById('cashoutButton').disabled = true;
+        currentCrashRoundId = null;
+        userBetThisRound = false;
+        return;
+    }
+    document.getElementById('multiplier').textContent = (state.multiplier || 1).toFixed(2) + 'x';
+    if (state.status === 'running') {
+        document.getElementById('crashTimer').textContent = 'Round in progress';
+        document.getElementById('placeBetButton').disabled = userBetThisRound;
+        document.getElementById('cashoutButton').disabled = !userBetThisRound;
+    } else {
+        document.getElementById('crashTimer').textContent = 'Next round in a few seconds...';
+        document.getElementById('placeBetButton').disabled = true;
+        document.getElementById('cashoutButton').disabled = true;
+        userBetThisRound = false;
+    }
+    if (currentCrashRoundId !== state.roundId) {
+        // New round started
+        currentCrashRoundId = state.roundId;
+        userBetThisRound = false;
+    }
+}
 
-        document.getElementById('cashoutButton').onclick = async function() {
-            try {
-                const res = await fetch(`${API}/api/crash/cashout`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${authToken}`
-                    }
-                });
-                const data = await res.json();
-                if (data.success) {
-                    alert(`Cashed out for ${data.payout} BTC at ${data.multiplier.toFixed(2)}x!`);
-                    userBetThisRound = false;
-                    fetchBalance();
-                } else {
-                    alert(data.message || 'Cashout failed.');
-                }
-            } catch (e) {
-                alert('Network error.');
-            }
-        };
+async function pollCrashState() {
+    try {
+        const res = await fetch(`${API}/api/crash/state`);
+        const data = await res.json();
+        if (data.success) setCrashUI(data.round);
+    } catch (e) {
+        document.getElementById('crashError').textContent = 'Cannot connect to server.';
+        console.error("Error polling crash state:", e);
+    }
+}
 
-        // ==== INITIALIZE ====
-        (function() {
-            if (authToken && localStorage.getItem('username')) {
-                showGame();
-                fetchBalance();
-            } else {
-                showModal('login');
+document.getElementById('placeBetButton').onclick = async function() {
+    const amt = parseFloat(document.getElementById('crashBetAmount').value);
+    if (!amt || amt <= 0) return alert('Enter a valid bet.');
+    try {
+        const res = await fetch(`${API}/api/crash/bet`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({ amount: amt })
+        });
+        const data = await res.json();
+        if (data.success) {
+            userBetThisRound = true;
+            betAmount = amt;
+            fetchBalance();
+        } else {
+            alert(data.message || 'Bet failed.');
+        }
+    } catch (e) {
+        alert('Network error.');
+    }
+};
+
+document.getElementById('cashoutButton').onclick = async function() {
+    try {
+        const res = await fetch(`${API}/api/crash/cashout`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
             }
-        })();
-    </script>
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert(`Cashed out for ${data.payout} BTC at ${data.multiplier.toFixed(2)}x!`);
+            userBetThisRound = false;
+            fetchBalance();
+        } else {
+            alert(data.message || 'Cashout failed.');
+        }
+    } catch (e) {
+        alert('Network error.');
+    }
+};
+
+// ==== INITIALIZE ====
+(function() {
+    if (authToken && localStorage.getItem('username')) {
+        showGame();
+        fetchBalance();
+    } else {
+        showModal('login');
+    }
+})();
+</script>
 </body>
 </html>
