@@ -15,10 +15,12 @@
   "license": "ISC",
   "description": "A backend for a gambling application with user authentication and balance tracking",
   "dependencies": {
-    "bcrypt": "^5.1.0",
+    "bcrypt": "^5.1.1",
     "btcpay": "^0.2.5",
+    "cors": "^2.8.5",
     "dotenv": "^17.2.1",
-    "express": "^4.17.1",
-    "mongodb": "^6.3.0"
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^6.18.0"
   }
 }
