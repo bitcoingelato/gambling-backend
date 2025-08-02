@@ -5,6 +5,7 @@ const bcrypt = require('bcrypt');
 const app = express();
 app.use(express.json());
 
+// Use environment variable for MongoDB URI, fallback to hardcoded value
 const uri = process.env.MONGODB_URI || 'mongodb+srv://bitcoingelato:Yeezy08@cluster0.ufdrrqd.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
 const client = new MongoClient(uri);
 
@@ -18,10 +19,16 @@ async function connectDB() {
   }
 }
 
+// Ensure DB connection is established before starting the server
 connectDB().catch(console.error);
 
 const db = client.db('gamblingDB');
 const usersCollection = db.collection('users');
+
+// Test route to verify the app is running
+app.get('/test', (req, res) => {
+  res.send('Test route working!');
+});
 
 // Signup endpoint
 app.post('/api/signup', async (req, res) => {
@@ -58,5 +65,6 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+// Start server with dynamic port
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
