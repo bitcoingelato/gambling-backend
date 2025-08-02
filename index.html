@@ -3,323 +3,312 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bitcoin Gelato</title>
+    <title>Bitcoin Gelato Casino</title>
     <style>
-        * { box-sizing: border-box; }
-        body {
-            font-family: 'Arial', sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f4;
-            color: #333;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: #2c3e50;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 5px;
-        }
-        .nav button {
-            background: #3498db;
-            border: none;
-            padding: 8px 15px;
-            color: white;
-            cursor: pointer;
-            border-radius: 3px;
-        }
-        .nav button:hover { background: #2980b9; }
-        #userInfo { display: flex; align-items: center; gap: 10px; }
-        .game-menu {
-            display: flex;
-            gap: 10px;
-            margin: 20px 0;
-            justify-content: center;
-        }
-        .game-menu button {
-            background: #e74c3c;
-            border: none;
-            padding: 10px 20px;
-            color: white;
-            cursor: pointer;
-            border-radius: 3px;
-        }
-        .game-menu button:hover { background: #c0392b; }
-        .section { display: none; padding: 20px; background: white; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .section.active { display: block; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; }
-        .form-group input {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 3px;
-        }
-        .error { color: #e74c3c; font-size: 0.9em; margin-top: 5px; }
-        button { background: #2ecc71; border: none; padding: 10px 20px; color: white; cursor: pointer; border-radius: 3px; }
-        button:hover { background: #27ae60; }
-        .h-captcha { margin: 10px 0; }
-        #crashMultiplier { font-size: 2em; color: #27ae60; }
-        .crash-controls { margin: 10px 0; }
+        body { font-family: Arial; background: #000; color: #fff; margin: 0; padding: 10px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .header { background: #333; padding: 10px; text-align: center; }
+        .tabs { margin: 10px 0; text-align: center; }
+        .tab { color: #FFC107; text-decoration: none; margin: 0 10px; cursor: pointer; }
+        .tab.active { color: #fff; border-bottom: 2px solid #fff; }
+        .section { background: #222; padding: 10px; margin-bottom: 10px; }
+        .hidden { display: none !important; }
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: #333; padding: 20px; width: 300px; text-align: center; }
+        .modal-tabs { display: flex; margin-bottom: 20px; }
+        .modal-tab { flex: 1; padding: 10px; cursor: pointer; color: #FFC107; }
+        .modal-tab.active { color: #fff; border-bottom: 2px solid #fff; }
+        .modal-content input, .modal-content button { width: 100%; padding: 8px; margin: 10px 0; background: #444; color: #fff; border: 1px solid #FFC107; }
+        .modal-content button { background: #FFC107; color: #000; border: none; cursor: pointer; }
+        .error { color: #FF0000; font-size: 0.9em; margin-top: 5px; }
+        .multiplier { font-size: 1.5em; background: #FFC107; color: #000; padding: 5px; text-align: center; }
+        .graph { width: 100%; height: 100px; background: #333; border: 1px solid #FFC107; position: relative; }
+        .graph-line { position: absolute; bottom: 0; left: 0; height: 2px; background: #00FF00; transition: width 0.1s linear; }
+        .graph-crash { position: absolute; bottom: 0; left: 0; height: 100%; background: rgba(255, 0, 0, 0.5); transition: width 0.1s linear; }
+        .bet-controls { text-align: center; margin: 10px 0; }
+        .bet-controls input, .bet-controls select { padding: 5px; margin: 5px; background: #444; color: #fff; border: 1px solid #FFC107; }
+        .bet-controls button { padding: 5px 10px; margin: 5px; background: #FFC107; color: #000; border: none; cursor: pointer; }
+        .bet-controls button:disabled { background: #666; }
+        .crash-timer { text-align: center; color: #FFC107; }
     </style>
-    <script src="https://hcaptcha.com/1/api.js" async defer></script>
 </head>
 <body>
-    <div class="container">
-        <div class="nav">
-            <div class="auth">
-                <button id="loginBtn">Login</button>
-                <button id="signupBtn">Sign Up</button>
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-tabs">
+                <div id="loginTab" class="modal-tab active">Login</div>
+                <div id="signupTab" class="modal-tab">Sign Up</div>
             </div>
-            <div id="userInfo" class="hidden">
-                Welcome, <span id="username"></span> | Balance: <span id="balance">0.0000 BTC (Fun Mode)</span>
-                <button id="logoutBtn">Logout</button>
+            <div id="loginForm">
+                <input type="text" id="loginUsername" placeholder="Username">
+                <input type="password" id="loginPassword" placeholder="Password">
+                <button id="loginButton">Login</button>
+                <p id="loginError" class="error hidden"></p>
             </div>
-        </div>
-
-        <div class="game-menu">
-            <button onclick="showSection('crash')">Crash</button>
-            <button onclick="showSection('coinflip')">Coinflip</button>
-            <button onclick="showSection('roulette')">Roulette</button>
-            <button onclick="showSection('threecp')">3CP</button>
-            <button onclick="showSection('account')">Account</button>
-        </div>
-
-        <div id="gameArea">
-            <!-- Login Section -->
-            <div id="loginSection" class="section">
-                <h2>Login</h2>
-                <div class="form-group">
-                    <label for="loginUsername">Username</label>
-                    <input type="text" id="loginUsername" placeholder="Enter Username">
-                </div>
-                <div class="form-group">
-                    <label for="loginPassword">Password</label>
-                    <input type="password" id="loginPassword" placeholder="Enter Password">
-                </div>
-                <button onclick="login()">Login</button>
-                <div id="loginError" class="error"></div>
-            </div>
-
-            <!-- Signup Section -->
-            <div id="signupSection" class="section">
-                <h2>Sign Up</h2>
-                <div class="form-group">
-                    <label for="signupUsername">Username</label>
-                    <input type="text" id="signupUsername" placeholder="Choose a Username">
-                    <div id="usernameError" class="error"></div>
-                </div>
-                <div class="form-group">
-                    <label for="signupEmail">Email</label>
-                    <input type="email" id="signupEmail" placeholder="Enter Email">
-                    <div id="emailError" class="error"></div>
-                </div>
-                <div class="form-group">
-                    <label for="signupPassword">Password</label>
-                    <input type="password" id="signupPassword" placeholder="Choose a Password">
-                    <div id="passwordError" class="error"></div>
-                </div>
-                <div class="h-captcha" data-sitekey=b1e64024-155e-43da-a5e6-9b56729c337e></div> <!-- Replace with your Site Key -->
-                <div id="captchaError" class="error"></div>
-                <button id="signupButton" onclick="signup()">Sign Up</button>
-                <div id="signupResult" class="error"></div>
-            </div>
-
-            <!-- Crash Game -->
-            <div id="crashSection" class="section">
-                <h2>Crash</h2>
-                <div>Multiplier: <span id="crashMultiplier">1.00x</span></div>
-                <div class="form-group">
-                    <label for="crashBet">Bet Amount (BTC)</label>
-                    <input type="number" id="crashBet" placeholder="Enter Bet" min="0.001" step="0.001" value="0.001">
-                </div>
-                <div class="crash-controls">
-                    <button onclick="placeBet()">Place Bet</button>
-                    <button id="cancelBetBtn" onclick="cancelBet()" disabled>Cancel Bet</button>
-                    <button id="cashoutBtn" onclick="cashOut()" disabled>Cash Out</button>
-                    <button onclick="verifyFairness()">Verify Fairness</button>
-                </div>
-                <div>Next round in <span id="crashTimer">9s</span></div>
-                <div>Round History
-                    <table>
-                        <tr><th>Crash Point</th><th>Round #</th><th>Bet</th><th>Verify</th><th>Time</th></tr>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Other Games (Placeholder) -->
-            <div id="coinflipSection" class="section">
-                <h2>Coinflip</h2>
-            </div>
-            <div id="rouletteSection" class="section">
-                <h2>Roulette</h2>
-            </div>
-            <div id="threecpSection" class="section">
-                <h2>3 Card Poker (3CP)</h2>
-            </div>
-            <div id="accountSection" class="section">
-                <h2>Account</h2>
+            <div id="signupForm" class="hidden">
+                <input type="text" id="signupUsername" placeholder="Username">
+                <input type="email" id="signupEmail" placeholder="Email">
+                <input type="password" id="signupPassword" placeholder="Password">
+                <button id="signupButton">Sign Up</button>
+                <p id="signupError" class="error hidden"></p>
             </div>
         </div>
     </div>
-
+    <div id="gameInterface" class="hidden">
+        <div class="header">
+            <span>Welcome, <span id="headerUsername">Guest</span> | Balance: <span id="balance">0.0000</span> BTC</span>
+            <button id="logoutButton">Logout</button>
+        </div>
+        <div class="tabs">
+            <a id="tabCrash" class="tab active">Crash</a>
+            <!-- You can add other tabs for Coinflip, Roulette, etc. -->
+        </div>
+        <div class="container">
+            <div id="crashSection" class="section">
+                <h2>Crash</h2>
+                <div class="multiplier" id="multiplier">1.00x</div>
+                <div class="graph">
+                    <div class="graph-line" id="graphLine"></div>
+                    <div class="graph-crash" id="graphCrash"></div>
+                </div>
+                <div class="bet-controls">
+                    <input type="number" id="crashBetAmount" placeholder="Bet Amount (BTC)" step="0.00000001" min="0.00000001" value="0.0001">
+                    <button id="placeBetButton">Place Bet</button>
+                    <button id="cashoutButton" disabled>Cash Out</button>
+                </div>
+                <div class="crash-timer" id="crashTimer">Next round in ...</div>
+                <div class="error" id="crashError"></div>
+            </div>
+        </div>
+    </div>
     <script>
-    let currentUser = null;
-    let crashInterval = null;
-    let betPlaced = false;
-    let currentMultiplier = 1.0;
+        // ==== CONFIG ====
+        const API = 'https://YOUR_BACKEND_URL'; // Replace with your backend API root
 
-    function showSection(sectionId) {
-        document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
-        document.getElementById(sectionId).classList.add('active');
-    }
+        let authToken = localStorage.getItem('token') || null;
+        let crashStatePoller = null;
+        let currentCrashRoundId = null;
+        let userBetThisRound = false;
+        let betAmount = 0;
 
-    // ---- LOGIN LOGIC ----
-    document.getElementById('loginBtn').addEventListener('click', () => showSection('loginSection'));
-    document.getElementById('signupBtn').addEventListener('click', () => showSection('signupSection'));
-
-    document.getElementById('loginSection').querySelector('button').addEventListener('click', function (e) {
-        e.preventDefault();
-        const username = document.getElementById('loginUsername').value.trim();
-        const password = document.getElementById('loginPassword').value;
-        const errorDiv = document.getElementById('loginError');
-        errorDiv.textContent = '';
-
-        fetch('https://desolate-shore-72677-e0fe07c2f233.herokuapp.com/api/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                currentUser = username;
-                document.getElementById('userInfo').classList.remove('hidden');
-                document.getElementById('username').textContent = username;
-                document.getElementById('balance').textContent = `${data.balance || 0} BTC (Fun Mode)`;
-                showSection('crashSection');
-                errorDiv.textContent = '';
+        // ==== MODAL/Login/Signup UI ====
+        function showModal(tab) {
+            document.getElementById('modal').classList.remove('hidden');
+            document.getElementById('gameInterface').classList.add('hidden');
+            if (tab === 'login') {
+                document.getElementById('loginForm').classList.remove('hidden');
+                document.getElementById('signupForm').classList.add('hidden');
+                document.getElementById('loginTab').classList.add('active');
+                document.getElementById('signupTab').classList.remove('active');
             } else {
-                errorDiv.textContent = data.message || "Login failed.";
+                document.getElementById('loginForm').classList.add('hidden');
+                document.getElementById('signupForm').classList.remove('hidden');
+                document.getElementById('loginTab').classList.remove('active');
+                document.getElementById('signupTab').classList.add('active');
             }
-        })
-        .catch(() => {
-            errorDiv.textContent = "Network error. Please try again.";
-        });
-    });
-
-    // ---- SIGNUP LOGIC ----
-    let signupButton = document.getElementById('signupButton');
-    let captchaToken = "";
-
-    // hCaptcha callback (called by hCaptcha when solved)
-    window.hcaptchaCallback = function(token) {
-        captchaToken = token;
-        signupButton.disabled = false;
-        document.getElementById('captchaError').textContent = '';
-    };
-
-    // Disable signup until captcha is solved
-    signupButton.disabled = true;
-
-    signupButton.addEventListener('click', function (e) {
-        e.preventDefault();
-
-        // Clear all errors
-        ['usernameError', 'emailError', 'passwordError', 'captchaError', 'signupResult'].forEach(id => {
-            document.getElementById(id).textContent = '';
-        });
-
-        const username = document.getElementById('signupUsername').value.trim();
-        const email = document.getElementById('signupEmail').value.trim();
-        const password = document.getElementById('signupPassword').value;
-
-        let hasError = false;
-        if (!username) {
-            document.getElementById('usernameError').textContent = 'Username is required';
-            hasError = true;
         }
-        if (!email) {
-            document.getElementById('emailError').textContent = 'Email is required';
-            hasError = true;
-        }
-        if (!password) {
-            document.getElementById('passwordError').textContent = 'Password is required';
-            hasError = true;
-        } else if (password.length < 6) {
-            document.getElementById('passwordError').textContent = 'Password must be at least 6 characters';
-            hasError = true;
-        }
-        if (!captchaToken) {
-            document.getElementById('captchaError').textContent = 'Please complete the CAPTCHA';
-            hasError = true;
+        document.getElementById('loginTab').onclick = () => showModal('login');
+        document.getElementById('signupTab').onclick = () => showModal('signup');
+
+        // ==== LOGIN ====
+        document.getElementById('loginButton').onclick = async function() {
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            const errorEl = document.getElementById('loginError');
+            errorEl.classList.add('hidden');
+            errorEl.textContent = '';
+            try {
+                const res = await fetch(`${API}/api/login`, {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({username, password})
+                });
+                const data = await res.json();
+                if (data.success && data.token) {
+                    authToken = data.token;
+                    localStorage.setItem('token', authToken);
+                    localStorage.setItem('username', data.username);
+                    showGame();
+                    fetchBalance();
+                } else {
+                    errorEl.textContent = data.message || 'Login failed.';
+                    errorEl.classList.remove('hidden');
+                }
+            } catch (e) {
+                errorEl.textContent = 'Network error.';
+                errorEl.classList.remove('hidden');
+            }
+        };
+
+        // ==== SIGNUP ====
+        document.getElementById('signupButton').onclick = async function() {
+            const username = document.getElementById('signupUsername').value.trim();
+            const email = document.getElementById('signupEmail').value.trim();
+            const password = document.getElementById('signupPassword').value;
+            const errorEl = document.getElementById('signupError');
+            errorEl.classList.add('hidden');
+            errorEl.textContent = '';
+            if (!username || !email || !password) {
+                errorEl.textContent = 'All fields required.';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+            if (password.length < 6) {
+                errorEl.textContent = 'Password must be at least 6 characters.';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+            try {
+                const res = await fetch(`${API}/api/signup`, {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({username, email, password})
+                });
+                const data = await res.json();
+                if (data.success) {
+                    errorEl.textContent = 'Signup successful! Please login.';
+                    errorEl.style.color = '#00FF00';
+                } else {
+                    errorEl.textContent = data.message || 'Signup failed.';
+                    errorEl.classList.remove('hidden');
+                }
+            } catch (e) {
+                errorEl.textContent = 'Network error.';
+                errorEl.classList.remove('hidden');
+            }
+        };
+
+        // ==== LOGOUT ====
+        document.getElementById('logoutButton').onclick = function() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('username');
+            authToken = null;
+            showModal('login');
+            if (crashStatePoller) clearInterval(crashStatePoller);
+        };
+
+        // ==== SHOW GAME ====
+        function showGame() {
+            document.getElementById('modal').classList.add('hidden');
+            document.getElementById('gameInterface').classList.remove('hidden');
+            document.getElementById('headerUsername').textContent = localStorage.getItem('username') || 'Guest';
+            // Start polling crash state
+            pollCrashState();
+            if (crashStatePoller) clearInterval(crashStatePoller);
+            crashStatePoller = setInterval(pollCrashState, 1000);
         }
 
-        if (hasError) return;
+        // ==== FETCH BALANCE ====
+        async function fetchBalance() {
+            if (!authToken) return;
+            try {
+                const res = await fetch(`${API}/api/balance`, {
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('balance').textContent = (data.balance || 0).toFixed(4);
+                }
+            } catch (e) { }
+        }
 
-        signupButton.disabled = true;
-
-        fetch('https://desolate-shore-72677-e0fe07c2f233.herokuapp.com/api/signup', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, email, password, captchaToken })
-        })
-        .then(response => response.json())
-        .then(data => {
-            const resultDiv = document.getElementById('signupResult');
-            if (data.success) {
-                resultDiv.textContent = data.message;
-                resultDiv.style.color = 'green';
-                // Reset form and move to login
-                document.getElementById('signupUsername').value = "";
-                document.getElementById('signupEmail').value = "";
-                document.getElementById('signupPassword').value = "";
-                hcaptcha.reset(); // clear captcha
-                captchaToken = "";
-                setTimeout(() => {
-                    showSection('loginSection');
-                    resultDiv.textContent = '';
-                }, 1500);
+        // ==== CRASH GAME LOGIC ====
+        function setCrashUI(state) {
+            document.getElementById('crashError').textContent = '';
+            if (!state) {
+                document.getElementById('multiplier').textContent = 'Waiting...';
+                document.getElementById('crashTimer').textContent = 'Waiting for next round...';
+                document.getElementById('placeBetButton').disabled = true;
+                document.getElementById('cashoutButton').disabled = true;
+                currentCrashRoundId = null;
+                userBetThisRound = false;
+                return;
+            }
+            document.getElementById('multiplier').textContent = (state.multiplier || 1).toFixed(2) + 'x';
+            if (state.status === 'running') {
+                document.getElementById('crashTimer').textContent = 'Round in progress';
+                document.getElementById('placeBetButton').disabled = userBetThisRound;
+                document.getElementById('cashoutButton').disabled = !userBetThisRound;
             } else {
-                resultDiv.textContent = data.message || "Signup failed.";
-                resultDiv.style.color = 'red';
-                hcaptcha.reset(); // Allow another attempt
-                captchaToken = "";
+                document.getElementById('crashTimer').textContent = 'Next round in a few seconds...';
+                document.getElementById('placeBetButton').disabled = true;
+                document.getElementById('cashoutButton').disabled = true;
+                userBetThisRound = false;
             }
-        })
-        .catch(() => {
-            document.getElementById('signupResult').textContent = "Network error. Please try again.";
-            hcaptcha.reset();
-            captchaToken = "";
-        })
-        .finally(() => {
-            signupButton.disabled = true; // always require captcha again
-        });
-    });
-
-    // hCaptcha render—ensure this matches your site key!
-    window.onload = function () {
-        showSection('crashSection');
-        hcaptcha.render(document.querySelector('.h-captcha'), {
-            sitekey: 'b1e64024-155e-43da-a5e6-9b56729c337e', // <-- your site key
-            callback: window.hcaptchaCallback,
-            'error-callback': function() {
-                document.getElementById('captchaError').textContent = 'Error with CAPTCHA, please try again';
+            if (currentCrashRoundId !== state.roundId) {
+                // New round started
+                currentCrashRoundId = state.roundId;
+                userBetThisRound = false;
             }
-        });
-    };
+        }
 
-    // ---- GAME LOGIC (unchanged) ----
-    // ... keep your crash/coinflip/etc. functions here ...
-    // (If you want me to re-integrate game logic, let me know!)
+        async function pollCrashState() {
+            try {
+                const res = await fetch(`${API}/api/crash/state`);
+                const data = await res.json();
+                if (data.success) setCrashUI(data.round);
+            } catch (e) {
+                document.getElementById('crashError').textContent = 'Cannot connect to server.';
+            }
+        }
 
-</script>
+        document.getElementById('placeBetButton').onclick = async function() {
+            const amt = parseFloat(document.getElementById('crashBetAmount').value);
+            if (!amt || amt <= 0) return alert('Enter a valid bet.');
+            try {
+                const res = await fetch(`${API}/api/crash/bet`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ amount: amt })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    userBetThisRound = true;
+                    betAmount = amt;
+                    fetchBalance();
+                } else {
+                    alert(data.message || 'Bet failed.');
+                }
+            } catch (e) {
+                alert('Network error.');
+            }
+        };
+
+        document.getElementById('cashoutButton').onclick = async function() {
+            try {
+                const res = await fetch(`${API}/api/crash/cashout`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(`Cashed out for ${data.payout} BTC at ${data.multiplier.toFixed(2)}x!`);
+                    userBetThisRound = false;
+                    fetchBalance();
+                } else {
+                    alert(data.message || 'Cashout failed.');
+                }
+            } catch (e) {
+                alert('Network error.');
+            }
+        };
+
+        // ==== INITIALIZE ====
+        (function() {
+            if (authToken && localStorage.getItem('username')) {
+                showGame();
+                fetchBalance();
+            } else {
+                showModal('login');
+            }
+        })();
+    </script>
 </body>
 </html>
