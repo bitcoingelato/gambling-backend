@@ -25,6 +25,11 @@ connectDB().catch(console.error);
 const db = client.db('gamblingDB');
 const usersCollection = db.collection('users');
 
+// Root route for homepage
+app.get('/', (req, res) => {
+  res.send('Welcome to the Gambling Backend!');
+});
+
 // Test route to verify the app is running
 app.get('/test', (req, res) => {
   res.send('Test route working!');
