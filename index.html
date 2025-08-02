@@ -37,7 +37,6 @@
         .bet-neutral { color: #FFC107; }
         .username { font-weight: bold; color: #FFC107; }
         .footer {text-align:center;font-size:0.9em; color:#888; margin-top: 20px;}
-        /* Responsive */
         @media (max-width: 800px) { .container {max-width:97vw;padding:2vw;} }
         @media (max-width: 650px) { .modal-content {width:96vw;} }
     </style>
@@ -256,24 +255,53 @@ document.getElementById('signupButton').onclick = async function() {
     const password = document.getElementById('signupPassword').value;
     const errorEl = document.getElementById('signupError');
     errorEl.classList.add('hidden'); errorEl.textContent = ''; errorEl.style.color = "#FF0000";
-    if (!username || !email || !password) { errorEl.textContent = 'All fields required.'; errorEl.classList.remove('hidden'); return; }
-    if (password.length < 6) { errorEl.textContent = 'Password must be at least 6 characters.'; errorEl.classList.remove('hidden'); return; }
+
+    if (!username || !email || !password) {
+        errorEl.textContent = 'All fields required.';
+        errorEl.classList.remove('hidden');
+        return;
+    }
+    if (password.length < 6) {
+        errorEl.textContent = 'Password must be at least 6 characters.';
+        errorEl.classList.remove('hidden');
+        return;
+    }
+
     try {
+        // Call backend to create account
         const res = await fetch(`${API}/api/signup`, {
-            method: 'POST', headers: {'Content-Type':'application/json'},
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
             body: JSON.stringify({username, email, password})
         });
         const data = await res.json();
         if (data.success) {
-            errorEl.style.color = "#00FF00";
-            errorEl.textContent = 'Signup successful! Logging you in...';
-            document.getElementById('loginUsername').value = username;
-            document.getElementById('loginPassword').value = password;
-            setTimeout(() => { document.getElementById('loginTab').click(); document.getElementById('loginButton').click(); }, 600);
+            // Immediately login with same credentials
+            const loginRes = await fetch(`${API}/api/login`, {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({username, password})
+            });
+            const loginData = await loginRes.json();
+            if (loginData.success && loginData.token) {
+                authToken = loginData.token;
+                localStorage.setItem('token', authToken);
+                localStorage.setItem('username', loginData.username);
+                errorEl.style.color = "#00FF00";
+                errorEl.textContent = 'Signup successful! Logging you in...';
+                showGame();
+            } else {
+                errorEl.textContent = loginData.message || 'Signup succeeded but auto-login failed.';
+                errorEl.classList.remove('hidden');
+            }
         } else {
-            errorEl.textContent = data.message || 'Signup failed.'; errorEl.classList.remove('hidden');
+            errorEl.textContent = data.message || 'Signup failed.';
+            errorEl.classList.remove('hidden');
         }
-    } catch (e) { errorEl.textContent = 'Network error.'; errorEl.classList.remove('hidden'); }
+    } catch (e) {
+        errorEl.textContent = 'Network error.';
+        errorEl.classList.remove('hidden');
+    }
 };
 
 document.getElementById('logoutButton').onclick = function() {
