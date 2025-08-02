@@ -11,10 +11,7 @@
         .crash-controls button { margin: 5px; }
         #crashMultiplier { font-size: 2em; color: green; }
         .hidden { display: none; }
-        .error { color: red; font-size: 0.9em; }
     </style>
-    <!-- hCaptcha Script -->
-    <script src="https://hcaptcha.com/1/api.js" async defer></script>
 </head>
 <body>
     <div class="nav">
@@ -43,22 +40,14 @@
             <input type="text" id="loginUsername" placeholder="Username">
             <input type="password" id="loginPassword" placeholder="Password">
             <button onclick="login()">Login</button>
-            <div id="loginError" class="error"></div>
         </div>
 
         <!-- Signup Section -->
         <div id="signupSection" class="login-section hidden">
             <h2>Sign Up</h2>
             <input type="text" id="signupUsername" placeholder="Username">
-            <div id="usernameError" class="error"></div>
-            <input type="email" id="signupEmail" placeholder="Email">
-            <div id="emailError" class="error"></div>
             <input type="password" id="signupPassword" placeholder="Password">
-            <div id="passwordError" class="error"></div>
-            <div class="h-captcha" data-sitekey="b1e64024-155e-43da-a5e6-9b56729c337e"></div> <!-- Replace with your hCaptcha site key -->
-            <div id="captchaError" class="error"></div>
             <button onclick="signup()">Sign Up</button>
-            <div id="signupResult" class="error"></div>
         </div>
 
         <!-- Crash Game -->
@@ -83,15 +72,19 @@
         <!-- Other Games (Placeholder) -->
         <div id="coinflipSection" class="game-section hidden">
             <h2>Coinflip</h2>
+            <!-- Add coinflip content later -->
         </div>
         <div id="rouletteSection" class="game-section hidden">
             <h2>Roulette</h2>
+            <!-- Add roulette content later -->
         </div>
         <div id="threecpSection" class="game-section hidden">
             <h2>3 Card Poker (3CP)</h2>
+            <!-- Add 3CP content later -->
         </div>
         <div id="accountSection" class="game-section hidden">
             <h2>Account</h2>
+            <!-- Add account content later -->
         </div>
     </div>
 
@@ -116,59 +109,29 @@
             })
             .then(response => response.json())
             .then(data => {
-                const errorDiv = document.getElementById('loginError');
                 if (data.success) {
                     currentUser = username;
                     document.getElementById('userInfo').classList.remove('hidden');
                     document.getElementById('username').textContent = username;
-                    document.getElementById('balance').textContent = `${data.balance || 0} BTC (Fun Mode)`;
+                    document.getElementById('balance').textContent = `${data.balance} BTC (Fun Mode)`;
                     document.getElementById('loginSection').classList.add('hidden');
-                    errorDiv.textContent = '';
+                    document.querySelectorAll('.login-section').forEach(el => el.classList.add('hidden'));
                 } else {
-                    errorDiv.textContent = data.message;
+                    alert(data.message);
                 }
             });
         }
 
         function signup() {
             const username = document.getElementById('signupUsername').value;
-            const email = document.getElementById('signupEmail').value;
             const password = document.getElementById('signupPassword').value;
-            const captchaToken = document.querySelector('.h-captcha').dataset.hcaptchaResponse || '';
-
-            // Clear previous errors
-            document.getElementById('usernameError').textContent = '';
-            document.getElementById('emailError').textContent = '';
-            document.getElementById('passwordError').textContent = '';
-            document.getElementById('captchaError').textContent = '';
-            document.getElementById('signupResult').textContent = '';
-
-            // Basic client-side validation
-            if (!username) document.getElementById('usernameError').textContent = 'Username is required';
-            if (!email) document.getElementById('emailError').textContent = 'Email is required';
-            if (!password) document.getElementById('passwordError').textContent = 'Password is required';
-            else if (password.length < 6) document.getElementById('passwordError').textContent = 'Password must be at least 6 characters';
-            if (!captchaToken) document.getElementById('captchaError').textContent = 'Please complete the CAPTCHA';
-
-            if (!username || !email || !password || password.length < 6 || !captchaToken) return;
-
             fetch('https://desolate-shore-72677-e0fe07c2f233.herokuapp.com/api/signup', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, email, password, captchaToken })
+                body: JSON.stringify({ username, password })
             })
             .then(response => response.json())
-            .then(data => {
-                const resultDiv = document.getElementById('signupResult');
-                if (data.success) {
-                    resultDiv.textContent = data.message;
-                    resultDiv.style.color = 'green';
-                    document.getElementById('signupSection').classList.add('hidden');
-                } else {
-                    resultDiv.textContent = data.message;
-                    resultDiv.style.color = 'red';
-                }
-            });
+            .then(data => alert(data.message));
         }
 
         function startCrashGame() {
@@ -191,10 +154,10 @@
 
         function simulateCrash() {
             if (betPlaced) {
-                currentMultiplier += 0.1;
+                currentMultiplier += 0.1; // Simulate increasing multiplier
                 document.getElementById('crashMultiplier').textContent = `${currentMultiplier.toFixed(2)}x`;
                 document.getElementById('crashMultiplier').style.color = 'red';
-                if (Math.random() < 0.1) {
+                if (Math.random() < 0.1) { // 10% chance to crash
                     endCrash();
                 } else {
                     setTimeout(simulateCrash, 100);
@@ -261,6 +224,7 @@
 
         function cancelBet() {
             if (betPlaced) {
+                // Refund bet (simplified; in practice, track and refund)
                 fetch('https://desolate-shore-72677-e0fe07c2f233.herokuapp.com/api/deposit', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -283,9 +247,14 @@
             alert('Fairness verification: Simulated for now. Use server/client seeds in production.');
         }
 
-        document.getElementById('loginBtn').addEventListener('click', () => showGame('loginSection'));
-        document.getElementById('signupBtn').addEventListener('click', () => showGame('signupSection'));
-        showGame('crash');
+        // Initial setup
+        document.getElementById('loginBtn').addEventListener('click', () => {
+            showGame('loginSection');
+        });
+        document.getElementById('signupBtn').addEventListener('click', () => {
+            showGame('signupSection');
+        });
+        showGame('crash'); // Default to crash game
         startCrashGame();
     </script>
 </body>
