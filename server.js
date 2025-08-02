@@ -1,216 +1,191 @@
 const express = require('express');
-const { MongoClient } = require('mongodb');
+const { MongoClient, ObjectId } = require('mongodb');
 const bcrypt = require('bcrypt');
-const fetch = require('node-fetch');
-const WebSocket = require('ws');
+const jwt = require('jsonwebtoken');
+const dotenv = require('dotenv');
+const cors = require('cors');
+dotenv.config();
 
 const app = express();
 app.use(express.json());
+app.use(cors());
 
-require('dotenv').config();
+const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
+const MONGODB_URI = process.env.MONGODB_URI;
+const PORT = process.env.PORT || 3000;
 
-const uri = process.env.MONGODB_URI || 'mongodb+srv://bitcoingelato:Yeezy08@cluster0.ufdrrqd.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
-const client = new MongoClient(uri);
+const client = new MongoClient(MONGODB_URI, { useUnifiedTopology: true });
+
+let db, usersCollection, crashRoundsCollection, crashBetsCollection;
 
 async function connectDB() {
-  try {
-    await client.connect();
-    console.log('Connected to MongoDB');
-  } catch (err) {
-    console.error('Error connecting to MongoDB:', err);
-    process.exit(1);
-  }
+  await client.connect();
+  db = client.db('gamblingDB');
+  usersCollection = db.collection('users');
+  crashRoundsCollection = db.collection('crash_rounds');
+  crashBetsCollection = db.collection('crash_bets');
+  console.log('Connected to MongoDB');
 }
-
 connectDB().catch(console.error);
 
-const db = client.db('gamblingDB');
-const usersCollection = db.collection('users');
-
-// WebSocket setup
-const server = app.listen(process.env.PORT || 3000, () => console.log(`Server running on port ${process.env.PORT || 3000}`));
-const wss = new WebSocket.Server({ server });
-
-let currentRound = {
-  multiplier: 1.0,
-  active: false,
-  crashPoint: null,
-  players: new Map(), // Map of username to bet amount
-  timer: null
-};
-
-function startNewRound() {
-  if (currentRound.timer) clearInterval(currentRound.timer);
-  currentRound = {
-    multiplier: 1.0,
-    active: true,
-    crashPoint: null,
-    players: new Map(),
-    timer: setInterval(() => {
-      currentRound.multiplier += 0.1;
-      broadcastState();
-      if (Math.random() < 0.1) { // 10% chance to crash
-        endRound();
-      }
-    }, 100)
-  };
-  broadcastState();
-}
-
-function endRound() {
-  if (currentRound.timer) clearInterval(currentRound.timer);
-  currentRound.active = false;
-  currentRound.crashPoint = currentRound.multiplier;
-  currentRound.players.forEach((betAmount, username) => {
-    const payout = betAmount * currentRound.crashPoint;
-    usersCollection.updateOne({ username }, { $inc: { balance: payout } });
-  });
-  broadcastState();
-  setTimeout(startNewRound, 5000); // 5-second break before next round
-}
-
-function broadcastState() {
-  wss.clients.forEach(client => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify({
-        multiplier: currentRound.multiplier.toFixed(2),
-        active: currentRound.active,
-        crashPoint: currentRound.crashPoint,
-        timeLeft: currentRound.timer ? 9 - Math.floor((Date.now() - currentRound.startTime) / 1000) : 5
-      }));
-    }
+// ---- AUTH MIDDLEWARE ----
+function authMiddleware(req, res, next) {
+  const header = req.headers.authorization;
+  if (!header) return res.status(401).json({ success: false, message: 'Missing token' });
+  const token = header.split(' ')[1];
+  jwt.verify(token, JWT_SECRET, (err, decoded) => {
+    if (err) return res.status(401).json({ success: false, message: 'Invalid token' });
+    req.user = decoded;
+    next();
   });
 }
 
-wss.on('connection', ws => {
-  ws.on('message', async message => {
-    const data = JSON.parse(message);
-    if (data.type === 'join' && currentUser) {
-      ws.send(JSON.stringify({ success: true, message: 'Joined round' }));
-      broadcastState();
-    } else if (data.type === 'bet' && data.username && data.betAmount) {
-      const user = await usersCollection.findOne({ username: data.username });
-      if (user && user.balance >= data.betAmount && currentRound.active) {
-        currentRound.players.set(data.username, data.betAmount);
-        usersCollection.updateOne({ username: data.username }, { $inc: { balance: -data.betAmount } });
-        ws.send(JSON.stringify({ success: true, remainingBalance: user.balance - data.betAmount }));
-        broadcastState();
-      } else {
-        ws.send(JSON.stringify({ success: false, message: 'Invalid bet' }));
-      }
-    } else if (data.type === 'cashout' && data.username && data.multiplier) {
-      if (currentRound.players.has(data.username) && currentRound.active) {
-        const betAmount = currentRound.players.get(data.username);
-        const payout = betAmount * data.multiplier;
-        currentRound.players.delete(data.username);
-        usersCollection.updateOne({ username: data.username }, { $inc: { balance: payout } });
-        ws.send(JSON.stringify({ success: true, payout, newBalance: (await usersCollection.findOne({ username: data.username })).balance }));
-        broadcastState();
-      } else {
-        ws.send(JSON.stringify({ success: false, message: 'Invalid cashout' }));
-      }
-    }
-  });
-});
-
-app.get('/', (req, res) => {
-  console.log('Root route hit');
-  res.send('Welcome to the Bitcoin Gelato Backend!');
-});
-
-app.get('/test', (req, res) => {
-  console.log('Test route hit');
-  res.send('Test route working!');
-});
-
+// ---- USER AUTH ROUTES ----
 app.post('/api/signup', async (req, res) => {
-  console.log('Signup route hit', req.body);
   try {
-    const { username, email, password, captchaToken } = req.body;
-    if (!username || !email || !password || !captchaToken) {
-      return res.status(400).json({ success: false, message: 'All fields (username, email, password, CAPTCHA) are required' });
-    }
-
-    const existingUser = await usersCollection.findOne({ $or: [{ username }, { email }] });
-    if (existingUser) {
-      if (existingUser.username === username) return res.status(400).json({ success: false, message: 'Username already taken' });
-      if (existingUser.email === email) return res.status(400).json({ success: false, message: 'Email already registered' });
-    }
-
-    if (password.length < 6) {
-      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters long' });
-    }
-
-    const captchaResponse = await fetch('https://hcaptcha.com/siteverify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `secret=b1e64024-155e-43da-a5e6-9b56729c337e&response=${captchaToken}`
-    }).then(res => res.json());
-    if (!captchaResponse.success) return res.status(400).json({ success: false, message: 'Invalid CAPTCHA' });
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    await usersCollection.insertOne({ username, email, password: hashedPassword, balance: 0 });
-    res.json({ success: true, message: 'Account created successfully! Please log in.' });
+    const { username, password, email } = req.body;
+    if (!username || !password || !email) return res.status(400).json({ success: false, message: 'Missing fields' });
+    const exists = await usersCollection.findOne({ username });
+    if (exists) return res.status(400).json({ success: false, message: 'Username taken' });
+    const hashed = await bcrypt.hash(password, 10);
+    await usersCollection.insertOne({ username, email, password: hashed, balance: 1 }); // Start with 1 BTC (fun mode)
+    res.json({ success: true, message: 'User created! Please log in.' });
   } catch (err) {
-    console.error('Signup error:', err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ success: false, message: 'Signup error' });
   }
 });
 
 app.post('/api/login', async (req, res) => {
-  console.log('Login route hit', req.body);
   try {
     const { username, password } = req.body;
-    if (!username || !password) {
-      return res.status(400).json({ success: false, message: 'Username and password are required' });
-    }
     const user = await usersCollection.findOne({ username });
-    if (user && await bcrypt.compare(password, user.password)) {
-      res.json({ success: true, message: 'Logged in!', balance: user.balance });
-    } else {
-      res.status(401).json({ success: false, message: 'Invalid username or password' });
-    }
+    if (!user) return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    const token = jwt.sign({ username, id: user._id }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ success: true, token, username, balance: user.balance });
   } catch (err) {
-    console.error('Login error:', err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ success: false, message: 'Login error' });
   }
 });
 
-app.post('/api/deposit', async (req, res) => {
-  console.log('Deposit route hit', req.body);
+app.get('/api/balance', authMiddleware, async (req, res) => {
+  const user = await usersCollection.findOne({ username: req.user.username });
+  res.json({ success: true, balance: user?.balance || 0 });
+});
+
+// ---- CRASH GAME ENGINE ----
+let crashRound = null;
+const CRASH_ROUND_DURATION = 10000; // 10 seconds
+const CRASH_WAIT_DURATION = 4000;    // 4 seconds between rounds
+
+async function startCrashRound() {
+  crashRound = {
+    _id: new ObjectId(),
+    roundId: Date.now(),
+    startTime: Date.now(),
+    status: 'running',
+    multiplier: 1.0,
+    crashPoint: parseFloat((1 + Math.random() * 9).toFixed(2)), // 1.00x - 10.00x
+    bets: []
+  };
+  await crashRoundsCollection.insertOne({ ...crashRound });
+
+  let interval = setInterval(async () => {
+    if (!crashRound) return clearInterval(interval);
+    crashRound.multiplier += 0.02 + 0.05 * crashRound.multiplier;
+    if (crashRound.multiplier >= crashRound.crashPoint) {
+      crashRound.status = 'crashed';
+      await crashRoundsCollection.updateOne(
+        { _id: crashRound._id },
+        { $set: { status: 'crashed', multiplier: crashRound.multiplier, endTime: Date.now() } }
+      );
+      crashRound = null;
+      setTimeout(startCrashRound, CRASH_WAIT_DURATION);
+      clearInterval(interval);
+    }
+  }, 300);
+}
+startCrashRound();
+
+// ---- CRASH GAME ROUTES ----
+
+// Get current crash round state
+app.get('/api/crash/state', async (req, res) => {
+  let round = crashRound;
+  if (!round) {
+    round = await crashRoundsCollection.find().sort({ startTime: -1 }).limit(1).next();
+  }
+  res.json({
+    success: true,
+    round: round
+      ? {
+          roundId: round.roundId,
+          startTime: round.startTime,
+          status: round.status,
+          multiplier: round.multiplier,
+          crashPoint: round.crashPoint,
+        }
+      : null
+  });
+});
+
+// Place a bet in the current crash round
+app.post('/api/crash/bet', authMiddleware, async (req, res) => {
   try {
-    const { username, amount } = req.body;
-    if (!username || !amount || amount <= 0) {
-      return res.status(400).json({ success: false, message: 'Username and positive amount are required' });
-    }
-    const user = await usersCollection.findOne({ username });
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-    await usersCollection.updateOne({ username }, { $set: { balance: user.balance + amount } });
-    res.json({ success: true, message: 'Deposit successful', newBalance: user.balance + amount });
+    if (!crashRound || crashRound.status !== 'running') return res.status(400).json({ success: false, message: 'No running round' });
+    const { amount } = req.body;
+    if (!amount || amount <= 0) return res.status(400).json({ success: false, message: 'Invalid amount' });
+    const user = await usersCollection.findOne({ username: req.user.username });
+    if (!user || user.balance < amount) return res.status(400).json({ success: false, message: 'Insufficient balance' });
+
+    // Check if already placed a bet this round
+    const alreadyBet = await crashBetsCollection.findOne({ roundId: crashRound.roundId, username: req.user.username, cashedOut: false });
+    if (alreadyBet) return res.status(400).json({ success: false, message: 'You already placed a bet this round' });
+
+    await usersCollection.updateOne({ username: req.user.username }, { $inc: { balance: -amount } });
+    await crashBetsCollection.insertOne({
+      roundId: crashRound.roundId,
+      username: req.user.username,
+      amount,
+      cashedOut: false,
+      placedAt: Date.now()
+    });
+    crashRound.bets.push({ username: req.user.username, amount });
+    res.json({ success: true, message: 'Bet placed' });
   } catch (err) {
-    console.error('Deposit error:', err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ success: false, message: 'Bet error' });
   }
 });
 
-app.post('/api/withdraw', async (req, res) => {
-  console.log('Withdraw route hit', req.body);
+// Cash out of the current crash round
+app.post('/api/crash/cashout', authMiddleware, async (req, res) => {
   try {
-    const { username, amount } = req.body;
-    if (!username || !amount || amount <= 0) {
-      return res.status(400).json({ success: false, message: 'Username and positive amount are required' });
-    }
-    const user = await usersCollection.findOne({ username });
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-    if (user.balance < amount) return res.status(400).json({ success: false, message: 'Insufficient balance' });
-    await usersCollection.updateOne({ username }, { $set: { balance: user.balance - amount } });
-    res.json({ success: true, message: 'Withdrawal successful', newBalance: user.balance - amount });
+    if (!crashRound || crashRound.status !== 'running') return res.status(400).json({ success: false, message: 'No running round' });
+    const bet = await crashBetsCollection.findOne({
+      roundId: crashRound.roundId,
+      username: req.user.username,
+      cashedOut: false
+    });
+    if (!bet) return res.status(400).json({ success: false, message: 'No active bet to cash out' });
+
+    const payout = parseFloat((bet.amount * crashRound.multiplier).toFixed(8));
+    await usersCollection.updateOne({ username: req.user.username }, { $inc: { balance: payout } });
+    await crashBetsCollection.updateOne(
+      { roundId: crashRound.roundId, username: req.user.username },
+      { $set: { cashedOut: true, cashoutMultiplier: crashRound.multiplier, cashoutAt: Date.now(), payout } }
+    );
+    res.json({ success: true, payout, multiplier: crashRound.multiplier });
   } catch (err) {
-    console.error('Withdraw error:', err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ success: false, message: 'Cashout error' });
   }
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+// Get user's crash bet history (optional)
+app.get('/api/crash/history', authMiddleware, async (req, res) => {
+  const bets = await crashBetsCollection.find({ username: req.user.username }).sort({ placedAt: -1 }).limit(50).toArray();
+  res.json({ success: true, bets });
 });
+
+// ---- LAUNCH SERVER ----
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
