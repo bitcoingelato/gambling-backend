@@ -1,6 +1,7 @@
 const express = require('express');
 const { MongoClient } = require('mongodb');
 const bcrypt = require('bcrypt');
+const fetch = require('node-fetch');
 
 const app = express();
 app.use(express.json());
@@ -27,7 +28,7 @@ const usersCollection = db.collection('users');
 
 app.get('/', (req, res) => {
   console.log('Root route hit');
-  res.send('Welcome to the Gambling Backend!');
+  res.send('Welcome to the Bitcoin Gelato Backend!');
 });
 
 app.get('/test', (req, res) => {
@@ -40,33 +41,32 @@ app.post('/api/signup', async (req, res) => {
   try {
     const { username, email, password, captchaToken } = req.body;
     if (!username || !email || !password || !captchaToken) {
-      return res.status(400).json({ success: false, message: 'Username, email, password, and CAPTCHA are required' });
+      return res.status(400).json({ success: false, message: 'All fields (username, email, password, CAPTCHA) are required' });
     }
 
-    // Check if username or email already exists
+    // Check for existing username or email
     const existingUser = await usersCollection.findOne({ $or: [{ username }, { email }] });
     if (existingUser) {
-      if (existingUser.username === username) {
-        return res.status(400).json({ success: false, message: 'Username already taken' });
-      }
-      if (existingUser.email === email) {
-        return res.status(400).json({ success: false, message: 'Email already registered' });
-      }
+      if (existingUser.username === username) return res.status(400).json({ success: false, message: 'Username already taken' });
+      if (existingUser.email === email) return res.status(400).json({ success: false, message: 'Email already registered' });
     }
 
-    // Validate password length
+    // Validate password
     if (password.length < 6) {
       return res.status(400).json({ success: false, message: 'Password must be at least 6 characters long' });
     }
 
-    // CAPTCHA validation (simplified; replace with hCaptcha API call in production)
-    // For now, assume token is valid; in production, verify with hCaptcha API
-    // Example: const captchaResponse = await fetch(`https://hcaptcha.com/siteverify`, { method: 'POST', body: `secret=${process.env.HCAPTCHA_SECRET}&response=${captchaToken}` });
-    // if (!captchaResponse.success) return res.status(400).json({ success: false, message: 'Invalid CAPTCHA' });
+    // Validate CAPTCHA
+    const captchaResponse = await fetch('https://hcaptcha.com/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `secret=b1e64024-155e-43da-a5e6-9b56729c337e&response=${captchaToken}`
+    }).then(res => res.json());
+    if (!captchaResponse.success) return res.status(400).json({ success: false, message: 'Invalid CAPTCHA' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
     await usersCollection.insertOne({ username, email, password: hashedPassword, balance: 0 });
-    res.json({ success: true, message: 'User created successfully!' });
+    res.json({ success: true, message: 'Account created successfully! Please log in.' });
   } catch (err) {
     console.error('Signup error:', err);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -100,13 +100,8 @@ app.post('/api/deposit', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Username and positive amount are required' });
     }
     const user = await usersCollection.findOne({ username });
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
-    await usersCollection.updateOne(
-      { username },
-      { $set: { balance: user.balance + amount } }
-    );
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    await usersCollection.updateOne({ username }, { $set: { balance: user.balance + amount } });
     res.json({ success: true, message: 'Deposit successful', newBalance: user.balance + amount });
   } catch (err) {
     console.error('Deposit error:', err);
@@ -122,16 +117,9 @@ app.post('/api/withdraw', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Username and positive amount are required' });
     }
     const user = await usersCollection.findOne({ username });
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
-    if (user.balance < amount) {
-      return res.status(400).json({ success: false, message: 'Insufficient balance' });
-    }
-    await usersCollection.updateOne(
-      { username },
-      { $set: { balance: user.balance - amount } }
-    );
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    if (user.balance < amount) return res.status(400).json({ success: false, message: 'Insufficient balance' });
+    await usersCollection.updateOne({ username }, { $set: { balance: user.balance - amount } });
     res.json({ success: true, message: 'Withdrawal successful', newBalance: user.balance - amount });
   } catch (err) {
     console.error('Withdraw error:', err);
@@ -147,12 +135,8 @@ app.post('/api/crash/bet', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Username and positive bet amount are required' });
     }
     const user = await usersCollection.findOne({ username });
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
-    if (user.balance < betAmount) {
-      return res.status(400).json({ success: false, message: 'Insufficient balance' });
-    }
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    if (user.balance < betAmount) return res.status(400).json({ success: false, message: 'Insufficient balance' });
     await usersCollection.updateOne({ username }, { $inc: { balance: -betAmount } });
     res.json({ success: true, message: 'Bet placed', remainingBalance: user.balance - betAmount });
   } catch (err) {
@@ -169,9 +153,7 @@ app.post('/api/crash/cashout', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Username and valid multiplier are required' });
     }
     const user = await usersCollection.findOne({ username });
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
     const lastBet = 1.0; // Placeholder; replace with actual bet tracking
     const payout = lastBet * multiplier;
     await usersCollection.updateOne({ username }, { $inc: { balance: payout } });
