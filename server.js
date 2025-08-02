@@ -15,6 +15,8 @@ const DB_NAME = process.env.DB_NAME || "casino";
 
 let db, usersCollection, crashCollection, coinflipCollection, rouletteCollection, pokerCollection;
 
+// Reliable connection before allowing requests
+let dbReady = false;
 MongoClient.connect(MONGODB_URI, { useUnifiedTopology: true }).then(client => {
     db = client.db(DB_NAME);
     usersCollection = db.collection('users');
@@ -22,8 +24,18 @@ MongoClient.connect(MONGODB_URI, { useUnifiedTopology: true }).then(client => {
     coinflipCollection = db.collection('coinflip_games');
     rouletteCollection = db.collection('roulette_games');
     pokerCollection = db.collection('threecp_games');
+    dbReady = true;
     console.log("Connected to MongoDB");
-}).catch(err => console.error("MongoDB connection error:", err));
+}).catch(err => {
+    dbReady = false;
+    console.error("MongoDB connection error:", err);
+});
+
+// Wait until dbReady for all requests
+app.use((req, res, next) => {
+    if (!dbReady) return res.status(503).json({ success: false, message: "Database not connected." });
+    next();
+});
 
 // JWT middleware
 function authenticateToken(req, res, next) {
@@ -44,6 +56,7 @@ app.post('/api/signup', async (req, res) => {
         if (!username || !email || !password) return res.json({ success: false, message: "Missing fields" });
         if (password.length < 6) return res.json({ success: false, message: "Password too short" });
         if (await usersCollection.findOne({ username })) return res.json({ success: false, message: "Username taken" });
+        if (await usersCollection.findOne({ email })) return res.json({ success: false, message: "Email taken" });
         const hash = await bcrypt.hash(password, 10);
         await usersCollection.insertOne({ username, email, password: hash, balance: 1 });
         res.json({ success: true });
