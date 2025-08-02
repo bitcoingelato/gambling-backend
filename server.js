@@ -38,13 +38,35 @@ app.get('/test', (req, res) => {
 app.post('/api/signup', async (req, res) => {
   console.log('Signup route hit', req.body);
   try {
-    const { username, password } = req.body;
-    if (!username || !password) {
-      return res.status(400).json({ success: false, message: 'Username and password are required' });
+    const { username, email, password, captchaToken } = req.body;
+    if (!username || !email || !password || !captchaToken) {
+      return res.status(400).json({ success: false, message: 'Username, email, password, and CAPTCHA are required' });
     }
+
+    // Check if username or email already exists
+    const existingUser = await usersCollection.findOne({ $or: [{ username }, { email }] });
+    if (existingUser) {
+      if (existingUser.username === username) {
+        return res.status(400).json({ success: false, message: 'Username already taken' });
+      }
+      if (existingUser.email === email) {
+        return res.status(400).json({ success: false, message: 'Email already registered' });
+      }
+    }
+
+    // Validate password length
+    if (password.length < 6) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters long' });
+    }
+
+    // CAPTCHA validation (simplified; replace with hCaptcha API call in production)
+    // For now, assume token is valid; in production, verify with hCaptcha API
+    // Example: const captchaResponse = await fetch(`https://hcaptcha.com/siteverify`, { method: 'POST', body: `secret=${process.env.HCAPTCHA_SECRET}&response=${captchaToken}` });
+    // if (!captchaResponse.success) return res.status(400).json({ success: false, message: 'Invalid CAPTCHA' });
+
     const hashedPassword = await bcrypt.hash(password, 10);
-    await usersCollection.insertOne({ username, password: hashedPassword, balance: 0 });
-    res.json({ success: true, message: 'User created!' });
+    await usersCollection.insertOne({ username, email, password: hashedPassword, balance: 0 });
+    res.json({ success: true, message: 'User created successfully!' });
   } catch (err) {
     console.error('Signup error:', err);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -117,7 +139,6 @@ app.post('/api/withdraw', async (req, res) => {
   }
 });
 
-// Crash game endpoints
 app.post('/api/crash/bet', async (req, res) => {
   console.log('Crash bet route hit', req.body);
   try {
@@ -132,7 +153,6 @@ app.post('/api/crash/bet', async (req, res) => {
     if (user.balance < betAmount) {
       return res.status(400).json({ success: false, message: 'Insufficient balance' });
     }
-    // Simulate placing a bet (deduct immediately, refund if not cashed out)
     await usersCollection.updateOne({ username }, { $inc: { balance: -betAmount } });
     res.json({ success: true, message: 'Bet placed', remainingBalance: user.balance - betAmount });
   } catch (err) {
@@ -152,7 +172,6 @@ app.post('/api/crash/cashout', async (req, res) => {
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
-    // Simulate the last bet amount (in practice, track active bets)
     const lastBet = 1.0; // Placeholder; replace with actual bet tracking
     const payout = lastBet * multiplier;
     await usersCollection.updateOne({ username }, { $inc: { balance: payout } });
