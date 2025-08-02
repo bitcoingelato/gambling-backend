@@ -5,28 +5,41 @@
     <title>Bitcoin Gelato Casino</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        body { font-family: Arial; background: #000; color: #fff; margin: 0; padding: 10px; }
-        .container { max-width: 600px; margin: 0 auto; }
-        .header { background: #333; padding: 10px; text-align: center; }
-        .tabs { margin: 10px 0; text-align: center; }
-        .tab { color: #FFC107; text-decoration: none; margin: 0 10px; cursor: pointer; }
-        .tab.active { color: #fff; border-bottom: 2px solid #fff; }
-        .section { background: #222; padding: 10px; margin-bottom: 10px; }
+        body { font-family: Arial, sans-serif; background: #1a1a1a; color: #fff; margin: 0; padding: 10px; }
+        .container { max-width: 700px; margin: 0 auto; }
+        .header { background: #212121; padding: 16px; text-align: center; border-radius: 10px; margin-bottom: 20px; }
+        .tabs { margin: 10px 0 20px 0; text-align: center; }
+        .tab { color: #FFC107; text-decoration: none; margin: 0 16px; cursor: pointer; font-size: 1.1em; }
+        .tab.active { color: #fff; border-bottom: 2px solid #FFC107; }
+        .section { background: #222; padding: 16px; margin-bottom: 16px; border-radius: 10px; box-shadow: 0 2px 8px #1116; }
         .hidden { display: none !important; }
-        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-        .modal-content { background: #333; padding: 20px; width: 300px; text-align: center; }
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.88); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: #333; padding: 28px 24px; width: 320px; text-align: center; border-radius: 12px; }
         .modal-tabs { display: flex; margin-bottom: 20px; }
-        .modal-tab { flex: 1; padding: 10px; cursor: pointer; color: #FFC107; }
-        .modal-tab.active { color: #fff; border-bottom: 2px solid #fff; }
-        .modal-content input, .modal-content button { width: 100%; padding: 8px; margin: 10px 0; background: #444; color: #fff; border: 1px solid #FFC107; }
-        .modal-content button { background: #FFC107; color: #000; border: none; cursor: pointer; }
-        .error { color: #FF0000; font-size: 0.9em; margin-top: 5px; }
-        .multiplier { font-size: 1.5em; background: #FFC107; color: #000; padding: 5px; text-align: center; }
+        .modal-tab { flex: 1; padding: 10px; cursor: pointer; color: #FFC107; font-weight: bold; }
+        .modal-tab.active { color: #fff; border-bottom: 2px solid #FFC107; }
+        .modal-content input, .modal-content button { width: 100%; padding: 10px; margin: 12px 0; background: #444; color: #fff; border: 1px solid #FFC107; border-radius: 6px; }
+        .modal-content button { background: #FFC107; color: #000; border: none; font-weight: bold; cursor: pointer; }
+        .error { color: #FF5252; font-size: 0.98em; margin-top: 5px; }
+        .success { color: #00e676; font-size: 0.98em; margin-top: 5px; }
+        .multiplier { font-size: 2em; background: #FFC107; color: #232323; padding: 8px 0; border-radius: 6px; margin-bottom: 12px; }
         .bet-controls { text-align: center; margin: 10px 0; }
-        .bet-controls input, .bet-controls select { padding: 5px; margin: 5px; background: #444; color: #fff; border: 1px solid #FFC107; }
-        .bet-controls button { padding: 5px 10px; margin: 5px; background: #FFC107; color: #000; border: none; cursor: pointer; }
-        .bet-controls button:disabled { background: #666; }
-        .crash-timer { text-align: center; color: #FFC107; }
+        .bet-controls input, .bet-controls select { padding: 8px; margin: 6px; background: #444; color: #fff; border: 1px solid #FFC107; border-radius: 4px; }
+        .bet-controls button { padding: 8px 14px; margin: 6px; background: #FFC107; color: #000; border: none; border-radius: 4px; font-weight: bold; }
+        .bet-controls button:disabled { background: #666; color: #bbb; }
+        .crash-timer { text-align: center; color: #FFC107; margin: 10px 0 0 0; font-weight: bold; }
+        .history-table, .history-table th, .history-table td { border-collapse: collapse; }
+        .history-table { width: 100%; margin: 10px 0 0 0; background: #292929; border-radius: 6px; overflow: hidden; }
+        .history-table th, .history-table td { border: 1px solid #393939; padding: 8px 4px; text-align: center; }
+        .history-table th { background: #333; color: #FFC107; }
+        .bet-win { color: #00e676; font-weight: bold; }
+        .bet-lose { color: #FF5252; font-weight: bold; }
+        .bet-neutral { color: #FFC107; }
+        .username { font-weight: bold; color: #FFC107; }
+        .footer {text-align:center;font-size:0.9em; color:#888; margin-top: 20px;}
+        /* Responsive */
+        @media (max-width: 800px) { .container {max-width:97vw;padding:2vw;} }
+        @media (max-width: 650px) { .modal-content {width:96vw;} }
     </style>
 </head>
 <body>
@@ -53,8 +66,8 @@
     </div>
     <div id="gameInterface" class="hidden">
         <div class="header">
-            <span>Welcome, <span id="headerUsername">Guest</span> | Balance: <span id="balance">0.0000</span> BTC</span>
-            <button id="logoutButton">Logout</button>
+            <span>Welcome, <span id="headerUsername" class="username">Guest</span> | Balance: <span id="balance">0.0000</span> BTC</span>
+            <button id="logoutButton" style="float:right;background:#FFC107;color:#222;border-radius:5px;font-weight:bold;">Logout</button>
         </div>
         <div class="tabs">
             <a id="tabCrash" class="tab active">Crash</a>
@@ -63,6 +76,7 @@
             <a id="tab3CP" class="tab">3CP</a>
         </div>
         <div class="container">
+            <!-- Crash -->
             <div id="crashSection" class="section">
                 <h2>Crash</h2>
                 <div class="multiplier" id="multiplier">1.00x</div>
@@ -71,9 +85,24 @@
                     <button id="placeBetButton">Place Bet</button>
                     <button id="cashoutButton" disabled>Cash Out</button>
                 </div>
+                <div id="crashError" class="error"></div>
                 <div class="crash-timer" id="crashTimer">Next round in ...</div>
-                <div class="error" id="crashError"></div>
+                <h3 style="margin-top:24px;">Crash Bet History</h3>
+                <table class="history-table" id="crashHistoryTable">
+                    <thead>
+                        <tr>
+                            <th>Round</th>
+                            <th>Bet</th>
+                            <th>Cashed Out</th>
+                            <th>Payout</th>
+                            <th>Crash At</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
             </div>
+            <!-- Coinflip -->
             <div id="coinflipSection" class="section hidden">
                 <h2>Coinflip</h2>
                 <div class="bet-controls">
@@ -84,9 +113,24 @@
                     </select>
                     <button id="coinflipButton">Flip Coin</button>
                 </div>
-                <div class="error" id="coinflipError"></div>
+                <div id="coinflipError" class="error"></div>
                 <p><strong>Result:</strong> <span id="coinflipResult">-</span></p>
+                <h3 style="margin-top:24px;">Coinflip Bet History</h3>
+                <table class="history-table" id="coinflipHistoryTable">
+                    <thead>
+                        <tr>
+                            <th>Bet</th>
+                            <th>Choice</th>
+                            <th>Result</th>
+                            <th>Outcome</th>
+                            <th>Payout</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
             </div>
+            <!-- Roulette -->
             <div id="rouletteSection" class="section hidden">
                 <h2>Roulette</h2>
                 <div class="bet-controls">
@@ -98,20 +142,51 @@
                     </select>
                     <button id="rouletteBetButton">Place Bet</button>
                 </div>
-                <div class="error" id="rouletteError"></div>
+                <div id="rouletteError" class="error"></div>
                 <p><strong>Result:</strong> <span id="rouletteResult">-</span></p>
+                <h3 style="margin-top:24px;">Roulette Bet History</h3>
+                <table class="history-table" id="rouletteHistoryTable">
+                    <thead>
+                        <tr>
+                            <th>Bet</th>
+                            <th>Color</th>
+                            <th>Result</th>
+                            <th>Payout</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
             </div>
+            <!-- 3CP -->
             <div id="threecpSection" class="section hidden">
                 <h2>3 Card Poker</h2>
                 <div class="bet-controls">
                     <input type="number" id="threecpBetAmount" placeholder="Ante Bet (BTC)" step="0.00000001" min="0.00000001" value="0.0001">
                     <button id="threecpBetButton">Deal Hand</button>
                 </div>
-                <div class="error" id="threecpError"></div>
+                <div id="threecpError" class="error"></div>
                 <p><strong>Your Hand:</strong> <span id="threecpPlayerHand">-</span></p>
                 <p><strong>Dealer's Hand:</strong> <span id="threecpDealerHand">-</span></p>
                 <p><strong>Result:</strong> <span id="threecpResult">-</span></p>
+                <h3 style="margin-top:24px;">3CP Bet History</h3>
+                <table class="history-table" id="threecpHistoryTable">
+                    <thead>
+                        <tr>
+                            <th>Bet</th>
+                            <th>Your Hand</th>
+                            <th>Dealer</th>
+                            <th>Outcome</th>
+                            <th>Payout</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
             </div>
+        </div>
+        <div class="footer">
+            &copy; 2025 Bitcoin Gelato Casino | Play responsibly.
         </div>
     </div>
 <script>
@@ -134,6 +209,8 @@ function showGame() {
     document.getElementById('gameInterface').classList.remove('hidden');
     document.getElementById('headerUsername').textContent = localStorage.getItem('username') || 'Guest';
     pollCrashState();
+    fetchBalance();
+    fetchAllHistory();
     if (crashStatePoller) clearInterval(crashStatePoller);
     crashStatePoller = setInterval(pollCrashState, 1000);
 }
@@ -144,6 +221,7 @@ for (const tab of ["Crash","Coinflip","Roulette","3CP"]) {
         for(const t of ["tabCrash","tabCoinflip","tabRoulette","tab3CP"]) document.getElementById(t).classList.remove('active');
         document.getElementById("tab"+tab).classList.add('active');
         document.getElementById((tab==="3CP"?"threecp":tab.toLowerCase())+"Section").classList.remove('hidden');
+        fetchAllHistory();
     };
 }
 document.getElementById('loginTab').onclick = () => showModal('login');
@@ -166,7 +244,6 @@ document.getElementById('loginButton').onclick = async function() {
             localStorage.setItem('token', authToken);
             localStorage.setItem('username', data.username);
             showGame();
-            fetchBalance();
         } else {
             errorEl.textContent = data.message || 'Login failed.'; errorEl.classList.remove('hidden');
         }
@@ -256,7 +333,7 @@ document.getElementById('placeBetButton').onclick = async function() {
             body: JSON.stringify({ amount: amt })
         });
         const data = await res.json();
-        if (data.success) { userBetThisRound = true; fetchBalance(); }
+        if (data.success) { userBetThisRound = true; fetchBalance(); fetchCrashHistory(); }
         else alert(data.message || 'Bet failed.');
     } catch (e) { alert('Network error.'); }
 };
@@ -267,7 +344,7 @@ document.getElementById('cashoutButton').onclick = async function() {
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` }
         });
         const data = await res.json();
-        if (data.success) { alert(`Cashed out for ${data.payout} BTC at ${data.multiplier.toFixed(2)}x!`); userBetThisRound = false; fetchBalance(); }
+        if (data.success) { alert(`Cashed out for ${data.payout} BTC at ${data.multiplier.toFixed(2)}x!`); userBetThisRound = false; fetchBalance(); fetchCrashHistory(); }
         else alert(data.message || 'Cashout failed.');
     } catch (e) { alert('Network error.'); }
 };
@@ -288,7 +365,7 @@ document.getElementById('coinflipButton').onclick = async function() {
         const data = await res.json();
         if (data.success) {
             document.getElementById('coinflipResult').textContent = `Result: ${data.result} — ${data.win ? "WIN" : "LOSE"}`;
-            fetchBalance();
+            fetchBalance(); fetchCoinflipHistory();
         } else err.textContent = data.message || 'Bet failed.';
     } catch (e) { err.textContent = 'Network error.'; }
 };
@@ -309,7 +386,7 @@ document.getElementById('rouletteBetButton').onclick = async function() {
         const data = await res.json();
         if (data.success) {
             document.getElementById('rouletteResult').textContent = `Result: ${data.result} — ${data.payout > 0 ? "WIN" : "LOSE"}`;
-            fetchBalance();
+            fetchBalance(); fetchRouletteHistory();
         } else err.textContent = data.message || 'Bet failed.';
     } catch (e) { err.textContent = 'Network error.'; }
 };
@@ -331,14 +408,105 @@ document.getElementById('threecpBetButton').onclick = async function() {
             document.getElementById('threecpPlayerHand').textContent = data.player.join(' ');
             document.getElementById('threecpDealerHand').textContent = data.dealer.join(' ');
             document.getElementById('threecpResult').textContent = data.win ? `WIN (+${data.payout})` : "LOSE";
-            fetchBalance();
+            fetchBalance(); fetchThreecpHistory();
         } else err.textContent = data.message || 'Bet failed.';
     } catch (e) { err.textContent = 'Network error.'; }
 };
 
+// --- History fetchers ---
+function fetchAllHistory() {
+    fetchCrashHistory(); fetchCoinflipHistory(); fetchRouletteHistory(); fetchThreecpHistory();
+}
+async function fetchCrashHistory() {
+    if (!authToken) return;
+    try {
+        const res = await fetch(`${API}/api/history/crash`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+        const data = await res.json();
+        const tbody = document.querySelector('#crashHistoryTable tbody');
+        tbody.innerHTML = '';
+        if (data.success && Array.isArray(data.history)) {
+            data.history.forEach(round => {
+                if (!Array.isArray(round.bets)) return;
+                round.bets.filter(b=>b.username===localStorage.getItem('username')).forEach(bet=>{
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td>${round.roundId}</td>
+                        <td>${bet.amount}</td>
+                        <td>${bet.cashedOut ? bet.cashedAt?.toFixed(2)+'x' : '-'}</td>
+                        <td class="${bet.payout>0?'bet-win':'bet-lose'}">${bet.payout?bet.payout:'-'}</td>
+                        <td>${round.crashAt?.toFixed(2)}x</td>
+                        <td>${(bet.time?new Date(bet.time):round.created?new Date(round.created):'').toLocaleString()}</td>`;
+                    tbody.appendChild(tr);
+                });
+            });
+        }
+    } catch (e) {}
+}
+async function fetchCoinflipHistory() {
+    if (!authToken) return;
+    try {
+        const res = await fetch(`${API}/api/history/coinflip`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+        const data = await res.json();
+        const tbody = document.querySelector('#coinflipHistoryTable tbody');
+        tbody.innerHTML = '';
+        if (data.success && Array.isArray(data.history)) {
+            data.history.forEach(bet => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${bet.amount}</td>
+                    <td>${bet.choice}</td>
+                    <td>${bet.result}</td>
+                    <td class="${bet.win?'bet-win':'bet-lose'}">${bet.win?"WIN":"LOSE"}</td>
+                    <td>${bet.payout}</td>
+                    <td>${new Date(bet.created).toLocaleString()}</td>`;
+                tbody.appendChild(tr);
+            });
+        }
+    } catch (e) {}
+}
+async function fetchRouletteHistory() {
+    if (!authToken) return;
+    try {
+        const res = await fetch(`${API}/api/history/roulette`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+        const data = await res.json();
+        const tbody = document.querySelector('#rouletteHistoryTable tbody');
+        tbody.innerHTML = '';
+        if (data.success && Array.isArray(data.history)) {
+            data.history.forEach(bet => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${bet.amount}</td>
+                    <td>${bet.color}</td>
+                    <td>${bet.result}</td>
+                    <td class="${bet.payout>0?'bet-win':'bet-lose'}">${bet.payout}</td>
+                    <td>${new Date(bet.created).toLocaleString()}</td>`;
+                tbody.appendChild(tr);
+            });
+        }
+    } catch (e) {}
+}
+async function fetchThreecpHistory() {
+    if (!authToken) return;
+    try {
+        const res = await fetch(`${API}/api/history/3cp`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+        const data = await res.json();
+        const tbody = document.querySelector('#threecpHistoryTable tbody');
+        tbody.innerHTML = '';
+        if (data.success && Array.isArray(data.history)) {
+            data.history.forEach(bet => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${bet.amount}</td>
+                    <td>${bet.player ? bet.player.join(' ') : '-'}</td>
+                    <td>${bet.dealer ? bet.dealer.join(' ') : '-'}</td>
+                    <td class="${bet.win?'bet-win':'bet-lose'}">${bet.win?"WIN":"LOSE"}</td>
+                    <td>${bet.payout}</td>
+                    <td>${new Date(bet.created).toLocaleString()}</td>`;
+                tbody.appendChild(tr);
+            });
+        }
+    } catch (e) {}
+}
+
 // Startup
 (function() {
-    if (authToken && localStorage.getItem('username')) { showGame(); fetchBalance(); }
+    if (authToken && localStorage.getItem('username')) { showGame(); }
     else { showModal('login'); }
 })();
 </script>
