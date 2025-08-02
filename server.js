@@ -1,12 +1,11 @@
 const express = require('express');
 const { MongoClient } = require('mongodb');
 const bcrypt = require('bcrypt');
-const btcpay = require('btcpay');
 
 const app = express();
 app.use(express.json());
 
-require('dotenv').config(); // Load .env file
+require('dotenv').config();
 
 const uri = process.env.MONGODB_URI || 'mongodb+srv://bitcoingelato:Yeezy08@cluster0.ufdrrqd.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
 const client = new MongoClient(uri);
@@ -82,31 +81,11 @@ app.post('/api/deposit', async (req, res) => {
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
-
-    // Initialize BTCPay client
-    const keypair = btcpay.crypto.generate_keypair();
-    const privateKey = keypair.priv;
-    const client = new btcpay.BTCPayClient(process.env.BTCPAY_URL, keypair, { merchant: process.env.BTCPAY_STORE_ID });
-
-    // Pair the client (one-time setup)
-    const pairingCode = 'your-pairing-code-from-btcpay'; // Replace with actual pairing code
-    await client.pair_client(pairingCode);
-
-    // Create BTCPay invoice
-    const invoice = await client.create_invoice({
-      price: amount,
-      currency: 'USD',
-      itemDesc: `Deposit for ${username}`,
-      notificationURL: `${process.env.HEROKU_URL}/api/webhook`, // Webhook URL
-      redirectURL: `${process.env.HEROKU_URL}/success`, // Optional redirect after payment
-    });
-
-    res.json({
-      success: true,
-      message: 'Invoice created',
-      checkoutLink: invoice.url,
-      invoiceId: invoice.id,
-    });
+    await usersCollection.updateOne(
+      { username },
+      { $set: { balance: user.balance + amount } }
+    );
+    res.json({ success: true, message: 'Deposit successful', newBalance: user.balance + amount });
   } catch (err) {
     console.error('Deposit error:', err);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -138,18 +117,50 @@ app.post('/api/withdraw', async (req, res) => {
   }
 });
 
-// Webhook to handle BTCPay payment confirmation
-app.post('/api/webhook', (req, res) => {
-  console.log('Webhook hit', req.body);
-  const { id, status } = req.body;
-  if (status === 'confirmed' || status === 'complete') {
-    // Update user balance (simplified; in practice, match invoice to user)
-    usersCollection.updateOne(
-      { username: 'testuser5' }, // Replace with logic to match invoice to user
-      { $inc: { balance: 1.5 } } // Replace with actual amount from invoice
-    ).catch(err => console.error('Webhook update error:', err));
+// Crash game endpoints
+app.post('/api/crash/bet', async (req, res) => {
+  console.log('Crash bet route hit', req.body);
+  try {
+    const { username, betAmount } = req.body;
+    if (!username || !betAmount || betAmount <= 0) {
+      return res.status(400).json({ success: false, message: 'Username and positive bet amount are required' });
+    }
+    const user = await usersCollection.findOne({ username });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    if (user.balance < betAmount) {
+      return res.status(400).json({ success: false, message: 'Insufficient balance' });
+    }
+    // Simulate placing a bet (deduct immediately, refund if not cashed out)
+    await usersCollection.updateOne({ username }, { $inc: { balance: -betAmount } });
+    res.json({ success: true, message: 'Bet placed', remainingBalance: user.balance - betAmount });
+  } catch (err) {
+    console.error('Crash bet error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
-  res.sendStatus(200); // Acknowledge webhook
+});
+
+app.post('/api/crash/cashout', async (req, res) => {
+  console.log('Crash cashout route hit', req.body);
+  try {
+    const { username, multiplier } = req.body;
+    if (!username || !multiplier || multiplier <= 1) {
+      return res.status(400).json({ success: false, message: 'Username and valid multiplier are required' });
+    }
+    const user = await usersCollection.findOne({ username });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    // Simulate the last bet amount (in practice, track active bets)
+    const lastBet = 1.0; // Placeholder; replace with actual bet tracking
+    const payout = lastBet * multiplier;
+    await usersCollection.updateOne({ username }, { $inc: { balance: payout } });
+    res.json({ success: true, message: 'Cashout successful', payout, newBalance: user.balance + payout });
+  } catch (err) {
+    console.error('Crash cashout error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 
 process.on('unhandledRejection', (reason, promise) => {
