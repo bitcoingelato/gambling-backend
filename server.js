@@ -24,14 +24,17 @@ const db = client.db('gamblingDB');
 const usersCollection = db.collection('users');
 
 app.get('/', (req, res) => {
+  console.log('Root route hit');
   res.send('Welcome to the Gambling Backend!');
 });
 
 app.get('/test', (req, res) => {
+  console.log('Test route hit');
   res.send('Test route working!');
 });
 
 app.post('/api/signup', async (req, res) => {
+  console.log('Signup route hit', req.body);
   try {
     const { username, password } = req.body;
     if (!username || !password) {
@@ -47,6 +50,7 @@ app.post('/api/signup', async (req, res) => {
 });
 
 app.post('/api/login', async (req, res) => {
+  console.log('Login route hit', req.body);
   try {
     const { username, password } = req.body;
     if (!username || !password) {
