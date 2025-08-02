@@ -2,6 +2,7 @@ const express = require('express');
 const { MongoClient } = require('mongodb');
 const bcrypt = require('bcrypt');
 const fetch = require('node-fetch');
+const WebSocket = require('ws');
 
 const app = express();
 app.use(express.json());
@@ -26,6 +27,92 @@ connectDB().catch(console.error);
 const db = client.db('gamblingDB');
 const usersCollection = db.collection('users');
 
+// WebSocket setup
+const server = app.listen(process.env.PORT || 3000, () => console.log(`Server running on port ${process.env.PORT || 3000}`));
+const wss = new WebSocket.Server({ server });
+
+let currentRound = {
+  multiplier: 1.0,
+  active: false,
+  crashPoint: null,
+  players: new Map(), // Map of username to bet amount
+  timer: null
+};
+
+function startNewRound() {
+  if (currentRound.timer) clearInterval(currentRound.timer);
+  currentRound = {
+    multiplier: 1.0,
+    active: true,
+    crashPoint: null,
+    players: new Map(),
+    timer: setInterval(() => {
+      currentRound.multiplier += 0.1;
+      broadcastState();
+      if (Math.random() < 0.1) { // 10% chance to crash
+        endRound();
+      }
+    }, 100)
+  };
+  broadcastState();
+}
+
+function endRound() {
+  if (currentRound.timer) clearInterval(currentRound.timer);
+  currentRound.active = false;
+  currentRound.crashPoint = currentRound.multiplier;
+  currentRound.players.forEach((betAmount, username) => {
+    const payout = betAmount * currentRound.crashPoint;
+    usersCollection.updateOne({ username }, { $inc: { balance: payout } });
+  });
+  broadcastState();
+  setTimeout(startNewRound, 5000); // 5-second break before next round
+}
+
+function broadcastState() {
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({
+        multiplier: currentRound.multiplier.toFixed(2),
+        active: currentRound.active,
+        crashPoint: currentRound.crashPoint,
+        timeLeft: currentRound.timer ? 9 - Math.floor((Date.now() - currentRound.startTime) / 1000) : 5
+      }));
+    }
+  });
+}
+
+wss.on('connection', ws => {
+  ws.on('message', async message => {
+    const data = JSON.parse(message);
+    if (data.type === 'join' && currentUser) {
+      ws.send(JSON.stringify({ success: true, message: 'Joined round' }));
+      broadcastState();
+    } else if (data.type === 'bet' && data.username && data.betAmount) {
+      const user = await usersCollection.findOne({ username: data.username });
+      if (user && user.balance >= data.betAmount && currentRound.active) {
+        currentRound.players.set(data.username, data.betAmount);
+        usersCollection.updateOne({ username: data.username }, { $inc: { balance: -data.betAmount } });
+        ws.send(JSON.stringify({ success: true, remainingBalance: user.balance - data.betAmount }));
+        broadcastState();
+      } else {
+        ws.send(JSON.stringify({ success: false, message: 'Invalid bet' }));
+      }
+    } else if (data.type === 'cashout' && data.username && data.multiplier) {
+      if (currentRound.players.has(data.username) && currentRound.active) {
+        const betAmount = currentRound.players.get(data.username);
+        const payout = betAmount * data.multiplier;
+        currentRound.players.delete(data.username);
+        usersCollection.updateOne({ username: data.username }, { $inc: { balance: payout } });
+        ws.send(JSON.stringify({ success: true, payout, newBalance: (await usersCollection.findOne({ username: data.username })).balance }));
+        broadcastState();
+      } else {
+        ws.send(JSON.stringify({ success: false, message: 'Invalid cashout' }));
+      }
+    }
+  });
+});
+
 app.get('/', (req, res) => {
   console.log('Root route hit');
   res.send('Welcome to the Bitcoin Gelato Backend!');
@@ -44,19 +131,16 @@ app.post('/api/signup', async (req, res) => {
       return res.status(400).json({ success: false, message: 'All fields (username, email, password, CAPTCHA) are required' });
     }
 
-    // Check for existing username or email
     const existingUser = await usersCollection.findOne({ $or: [{ username }, { email }] });
     if (existingUser) {
       if (existingUser.username === username) return res.status(400).json({ success: false, message: 'Username already taken' });
       if (existingUser.email === email) return res.status(400).json({ success: false, message: 'Email already registered' });
     }
 
-    // Validate password
     if (password.length < 6) {
       return res.status(400).json({ success: false, message: 'Password must be at least 6 characters long' });
     }
 
-    // Validate CAPTCHA
     const captchaResponse = await fetch('https://hcaptcha.com/siteverify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -127,46 +211,6 @@ app.post('/api/withdraw', async (req, res) => {
   }
 });
 
-app.post('/api/crash/bet', async (req, res) => {
-  console.log('Crash bet route hit', req.body);
-  try {
-    const { username, betAmount } = req.body;
-    if (!username || !betAmount || betAmount <= 0) {
-      return res.status(400).json({ success: false, message: 'Username and positive bet amount are required' });
-    }
-    const user = await usersCollection.findOne({ username });
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-    if (user.balance < betAmount) return res.status(400).json({ success: false, message: 'Insufficient balance' });
-    await usersCollection.updateOne({ username }, { $inc: { balance: -betAmount } });
-    res.json({ success: true, message: 'Bet placed', remainingBalance: user.balance - betAmount });
-  } catch (err) {
-    console.error('Crash bet error:', err);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
-app.post('/api/crash/cashout', async (req, res) => {
-  console.log('Crash cashout route hit', req.body);
-  try {
-    const { username, multiplier } = req.body;
-    if (!username || !multiplier || multiplier <= 1) {
-      return res.status(400).json({ success: false, message: 'Username and valid multiplier are required' });
-    }
-    const user = await usersCollection.findOne({ username });
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-    const lastBet = 1.0; // Placeholder; replace with actual bet tracking
-    const payout = lastBet * multiplier;
-    await usersCollection.updateOne({ username }, { $inc: { balance: payout } });
-    res.json({ success: true, message: 'Cashout successful', payout, newBalance: user.balance + payout });
-  } catch (err) {
-    console.error('Crash cashout error:', err);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
