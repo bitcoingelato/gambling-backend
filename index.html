@@ -1,183 +1,328 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Bitcoin Gelato Casino</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body { font-family: Arial, sans-serif; background: #1a1a1a; color: #fff; margin: 0; padding: 10px; }
-        .container { max-width: 500px; margin: 0 auto; }
-        .header { background: #212121; padding: 16px; text-align: center; border-radius: 10px; margin-bottom: 20px; }
-        .hidden { display: none !important; }
-        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.88); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-        .modal-content { background: #333; padding: 28px 24px; width: 320px; text-align: center; border-radius: 12px; }
-        .modal-tabs { display: flex; margin-bottom: 20px; }
-        .modal-tab { flex: 1; padding: 10px; cursor: pointer; color: #FFC107; font-weight: bold; }
-        .modal-tab.active { color: #fff; border-bottom: 2px solid #FFC107; }
-        .modal-content input, .modal-content button { width: 100%; padding: 10px; margin: 12px 0; background: #444; color: #fff; border: 1px solid #FFC107; border-radius: 6px; }
-        .modal-content button { background: #FFC107; color: #000; border: none; font-weight: bold; cursor: pointer; }
-        .error { color: #FF5252; font-size: 0.98em; margin-top: 5px; }
-        .success { color: #00e676; font-size: 0.98em; margin-top: 5px; }
-        .footer {text-align:center;font-size:0.9em; color:#888; margin-top: 20px;}
-    </style>
+  <meta charset="UTF-8">
+  <title>Bitcoin Gelato Casino</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: Arial; background: #111; color: #fff; margin: 0; }
+    .container { max-width: 420px; margin: 32px auto 0 auto; background: #222; border-radius: 8px; box-shadow: 0 4px 16px #0008; padding: 24px; }
+    h2 { text-align: center; }
+    .game-btn { display: block; width: 90%; margin: 12px auto; padding: 16px; font-size: 1.2em; background: #ffc107; color: #222; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+    .game-btn:disabled { opacity: .5; cursor: not-allowed; }
+    .modal, .hidden { display: none; }
+    .modal.show { display: flex; position: fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.85); align-items: center; justify-content: center; z-index:9; }
+    .modal-content { background: #222; color: #fff; padding: 24px 32px; border-radius: 10px; text-align: center; min-width: 220px; }
+    .input, input { width: 100%; padding: 10px; margin: 8px 0; border-radius: 5px; border: 1px solid #ffc107; background: #333; color: #fff; }
+    #balanceBox { margin: 10px 0 18px; text-align: center; font-size: 1.1em; }
+    #logoutBtn { background: #e74c3c; color: #fff; border: none; border-radius: 6px; padding: 8px 12px; cursor: pointer; float: right; margin-top: -44px; }
+    #crashArea { background: #191919; border-radius: 8px; padding: 18px; margin-top: 14px; }
+    #crashMultiplier { font-size: 2em; color: #ffc107; text-align: center; }
+    #crashStatus { text-align: center; margin-bottom: 8px; }
+    #crashBetRow { text-align: center; margin-bottom: 8px; }
+    #crashBetAmount { width: 60px; }
+    #crashHistory { margin-top: 18px; }
+    #crashHistory td, #crashHistory th { color: #ffc107; padding: 3px 8px; }
+    .err { color: #e74c3c; font-size: .98em; text-align: center; }
+    #userBox { text-align: center; margin-bottom: 10px; }
+  </style>
 </head>
 <body>
-    <div id="modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-tabs">
-                <div id="loginTab" class="modal-tab active">Login</div>
-                <div id="signupTab" class="modal-tab">Sign Up</div>
-            </div>
-            <div id="loginForm">
-                <input type="text" id="loginUsername" placeholder="Username" autocomplete="username">
-                <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password">
-                <button id="loginButton" type="button">Login</button>
-                <p id="loginError" class="error hidden"></p>
-            </div>
-            <div id="signupForm" class="hidden">
-                <input type="text" id="signupUsername" placeholder="Username" autocomplete="username">
-                <input type="email" id="signupEmail" placeholder="Email" autocomplete="email">
-                <input type="password" id="signupPassword" placeholder="Password" autocomplete="new-password">
-                <input type="password" id="signupConfirmPassword" placeholder="Confirm Password" autocomplete="new-password">
-                <button id="signupButton" type="button">Sign Up</button>
-                <p id="signupError" class="error hidden"></p>
-            </div>
-        </div>
+  <div class="container" id="loginPage">
+    <h2>Bitcoin Gelato Casino</h2>
+    <div id="loginBox">
+      <input class="input" id="loginUser" placeholder="Username">
+      <input class="input" id="loginPass" type="password" placeholder="Password">
+      <button class="game-btn" id="loginBtn">Login</button>
+      <p style="text-align:center;">No account? <a href="#" id="showSignup" style="color:#ffc107;">Sign Up</a></p>
+      <div class="err" id="loginErr"></div>
     </div>
-    <div id="gameInterface" class="hidden">
-        <div class="header">
-            <span>Welcome, <span id="headerUsername" class="username">Guest</span></span>
-            <button id="logoutButton" style="float:right;background:#FFC107;color:#222;border-radius:5px;font-weight:bold;">Logout</button>
-        </div>
-        <div class="container">
-            <h2>Main Game Page</h2>
-            <p>You are now logged in to Bitcoin Gelato Casino!</p>
-        </div>
-        <div class="footer">
-            &copy; 2025 Bitcoin Gelato Casino | Play responsibly.
-        </div>
+    <div id="signupBox" class="hidden">
+      <input class="input" id="signupUser" placeholder="Username">
+      <input class="input" id="signupEmail" type="email" placeholder="Email">
+      <input class="input" id="signupPass" type="password" placeholder="Password">
+      <button class="game-btn" id="signupBtn">Sign Up (Fun Mode)</button>
+      <p style="text-align:center;">Already have an account? <a href="#" id="showLogin" style="color:#ffc107;">Login</a></p>
+      <div class="err" id="signupErr"></div>
     </div>
-<script>
-const API = "https://desolate-shore-72677-e0fe07c2f233.herokuapp.com";
-let authToken = localStorage.getItem('token') || null;
+  </div>
 
-console.log("Casino JS loaded");
+  <div class="container hidden" id="mainPage">
+    <div id="userBox">
+      Welcome, <b id="userName"></b>!
+      <button id="logoutBtn">Logout</button>
+    </div>
+    <div id="balanceBox">
+      Fun Mode Balance: <span id="balance"></span>
+    </div>
+    <button class="game-btn" id="btnCrash">Crash</button>
+    <button class="game-btn" id="btnCoinflip">Coinflip</button>
+    <button class="game-btn" id="btnRoulette">Roulette</button>
+    <button class="game-btn" id="btn3cp">3 Card Poker</button>
+  </div>
 
-document.getElementById('loginTab').onclick = function() {
-    document.getElementById('loginTab').classList.add('active');
-    document.getElementById('signupTab').classList.remove('active');
-    document.getElementById('loginForm').classList.remove('hidden');
-    document.getElementById('signupForm').classList.add('hidden');
-};
-document.getElementById('signupTab').onclick = function() {
-    document.getElementById('signupTab').classList.add('active');
-    document.getElementById('loginTab').classList.remove('active');
-    document.getElementById('signupForm').classList.remove('hidden');
-    document.getElementById('loginForm').classList.add('hidden');
-};
+  <!-- Crash Game Section -->
+  <div class="container hidden" id="crashSection">
+    <button onclick="backToMenu()" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
+    <h2>Crash (Fun Mode)</h2>
+    <div id="crashArea">
+      <div id="crashStatus"></div>
+      <div id="crashMultiplier">1.00x</div>
+      <div id="crashBetRow">
+        <input id="crashBetAmount" type="number" step="0.01" min="0.01" value="1.00"> 
+        <button id="crashBetBtn">Place Bet</button>
+        <button id="crashCashoutBtn" disabled>Cash Out</button>
+      </div>
+      <div id="crashMsg" class="err"></div>
+    </div>
+    <div id="crashHistoryDiv">
+      <h4 style="margin: 14px 0 6px;">Recent Crash Rounds</h4>
+      <table id="crashHistory" border="0" style="width:100%;">
+        <thead><tr><th>Round</th><th>Crash</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
 
-function showGameInterface() {
-    document.getElementById('modal').classList.add('hidden');
-    document.getElementById('gameInterface').classList.remove('hidden');
-    document.getElementById('headerUsername').textContent = localStorage.getItem('username') || 'Guest';
-}
-function showModal() {
-    document.getElementById('modal').classList.remove('hidden');
-    document.getElementById('gameInterface').classList.add('hidden');
-}
+  <!-- Modal for Coming Soon -->
+  <div class="modal" id="modalComingSoon">
+    <div class="modal-content">
+      <h3>Coming Soon 🚧</h3>
+      <p>This game will be available soon!</p>
+      <button onclick="closeComingSoon()" class="game-btn" style="background:#222;color:#ffc107;">OK</button>
+    </div>
+  </div>
 
-document.getElementById('signupButton').onclick = async function(e) {
-    console.log("Signup button clicked");
-    e.preventDefault && e.preventDefault();
-    const username = document.getElementById('signupUsername').value.trim();
-    const email = document.getElementById('signupEmail').value.trim();
-    const password = document.getElementById('signupPassword').value;
-    const confirm = document.getElementById('signupConfirmPassword').value;
-    const errorEl = document.getElementById('signupError');
-    errorEl.classList.add('hidden');
-    errorEl.textContent = '';
-    if (!username || !email || !password || !confirm) {
-        errorEl.textContent = 'All fields required.'; errorEl.classList.remove('hidden'); return;
+  <script>
+    // ======= CONFIG =======
+    const API = "https://desolate-shore-72677-e0fe07c2f233.herokuapp.com/api";
+    // ======================
+
+    // State
+    let authToken = '', user = '', crashPoll = null, placedBet = null, crashRoundId = 0;
+
+    // ---------- Auth/Login/Signup ----------
+    function show(id) { document.getElementById(id).classList.remove('hidden'); }
+    function hide(id) { document.getElementById(id).classList.add('hidden'); }
+    function setText(id, val) { document.getElementById(id).textContent = val; }
+
+    function gotoLogin() {
+      hide('mainPage'); hide('crashSection');
+      show('loginPage');
+      show('loginBox'); hide('signupBox');
+      document.getElementById('loginErr').textContent = '';
+      document.getElementById('loginUser').value = '';
+      document.getElementById('loginPass').value = '';
     }
-    if (password.length < 6) {
-        errorEl.textContent = 'Password must be at least 6 characters.'; errorEl.classList.remove('hidden'); return;
+    function gotoSignup() {
+      hide('mainPage'); hide('crashSection');
+      show('loginPage');
+      hide('loginBox'); show('signupBox');
+      document.getElementById('signupErr').textContent = '';
+      document.getElementById('signupUser').value = '';
+      document.getElementById('signupPass').value = '';
+      document.getElementById('signupEmail').value = '';
     }
-    if (password !== confirm) {
-        errorEl.textContent = 'Passwords do not match.'; errorEl.classList.remove('hidden'); return;
-    }
-    try {
-        console.log("Sending signup request to", `${API}/api/signup`);
-        const res = await fetch(`${API}/api/signup`, {
-            method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({username, email, password})
+
+    document.getElementById('showSignup').onclick = e => { e.preventDefault(); gotoSignup(); };
+    document.getElementById('showLogin').onclick = e => { e.preventDefault(); gotoLogin(); };
+
+    document.getElementById('loginBtn').onclick = async function() {
+      const username = document.getElementById('loginUser').value.trim();
+      const password = document.getElementById('loginPass').value;
+      document.getElementById('loginErr').textContent = '';
+      if (!username || !password) { document.getElementById('loginErr').textContent = 'Enter both fields.'; return; }
+      const res = await fetch(`${API}/login`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({username, password})
+      });
+      const data = await res.json();
+      if (data.success) {
+        authToken = data.token; user = data.username;
+        afterLogin();
+      } else {
+        document.getElementById('loginErr').textContent = data.message || "Login failed";
+      }
+    };
+
+    document.getElementById('signupBtn').onclick = async function() {
+      const username = document.getElementById('signupUser').value.trim();
+      const email = document.getElementById('signupEmail').value.trim();
+      const password = document.getElementById('signupPass').value;
+      document.getElementById('signupErr').textContent = '';
+      if (!username || !email || !password) { document.getElementById('signupErr').textContent = 'Fill all fields.'; return; }
+      const res = await fetch(`${API}/signup`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({username, email, password})
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Immediately log user in for fun mode
+        const res2 = await fetch(`${API}/login`, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({username, password})
         });
-        const data = await res.json();
-        console.log("Signup response:", data);
-        if (data.success) {
-            // Auto-login after signup
-            const loginRes = await fetch(`${API}/api/login`, {
-                method: 'POST',
-                headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({username, password})
-            });
-            const loginData = await loginRes.json();
-            if (loginData.success && loginData.token) {
-                localStorage.setItem('token', loginData.token);
-                localStorage.setItem('username', loginData.username);
-                showGameInterface();
-            } else {
-                errorEl.textContent = loginData.message || 'Signup succeeded but login failed.'; errorEl.classList.remove('hidden');
-            }
+        const data2 = await res2.json();
+        if (data2.success) {
+          authToken = data2.token; user = data2.username;
+          afterLogin();
         } else {
-            errorEl.textContent = data.message || 'Signup failed.'; errorEl.classList.remove('hidden');
+          document.getElementById('signupErr').textContent = "Signup succeeded, but login failed.";
         }
-    } catch (err) {
-        errorEl.textContent = 'Network error.'; errorEl.classList.remove('hidden');
-        console.error(err);
-    }
-};
+      } else {
+        document.getElementById('signupErr').textContent = data.message || "Signup failed";
+      }
+    };
 
-document.getElementById('loginButton').onclick = async function(e) {
-    console.log("Login button clicked");
-    e.preventDefault && e.preventDefault();
-    const username = document.getElementById('loginUsername').value.trim();
-    const password = document.getElementById('loginPassword').value;
-    const errorEl = document.getElementById('loginError');
-    errorEl.classList.add('hidden'); errorEl.textContent = '';
-    try {
-        console.log("Sending login request to", `${API}/api/login`);
-        const res = await fetch(`${API}/api/login`, {
-            method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({username, password})
+    function afterLogin() {
+      hide('loginPage');
+      show('mainPage');
+      setText('userName', user);
+      refreshBalance();
+    }
+
+    document.getElementById('logoutBtn').onclick = function() {
+      authToken = ''; user = '';
+      gotoLogin();
+    };
+
+    // ---------- Main Page Buttons ----------
+    document.getElementById('btnCrash').onclick = function() {
+      hide('mainPage');
+      show('crashSection');
+      startCrashPoll();
+    };
+    function backToMenu() {
+      hide('crashSection');
+      show('mainPage');
+      stopCrashPoll();
+      refreshBalance();
+    }
+    document.getElementById('btnCoinflip').onclick =
+    document.getElementById('btnRoulette').onclick =
+    document.getElementById('btn3cp').onclick = function() {
+      document.getElementById('modalComingSoon').classList.add('show');
+    };
+    function closeComingSoon() {
+      document.getElementById('modalComingSoon').classList.remove('show');
+    }
+
+    // ---------- Fun Mode Balance ----------
+    async function refreshBalance() {
+      if (!authToken) return;
+      const res = await fetch(`${API}/balance`, {
+        headers:{'Authorization':'Bearer '+authToken}
+      });
+      const data = await res.json();
+      if (data.success) {
+        setText('balance', data.balance.toFixed(2));
+      } else {
+        setText('balance', "0.00");
+      }
+    }
+
+    // ---------- CRASH GAME ----------
+    function startCrashPoll() {
+      placedBet = null;
+      crashRoundId = 0;
+      updateCrashUI({status:'loading', multiplier:1});
+      getCrashHistory();
+      fetchCrashState();
+      if (crashPoll) clearInterval(crashPoll);
+      crashPoll = setInterval(fetchCrashState, 1000);
+    }
+    function stopCrashPoll() {
+      if (crashPoll) clearInterval(crashPoll);
+      crashPoll = null;
+    }
+
+    // Main polling function
+    async function fetchCrashState() {
+      if (!authToken) return;
+      const res = await fetch(`${API}/crash/state`, {headers:{'Authorization':'Bearer '+authToken}});
+      const data = await res.json();
+      if (data.success && data.round) {
+        crashRoundId = data.round.roundId;
+        updateCrashUI(data.round);
+      }
+    }
+
+    // Place Bet
+    document.getElementById('crashBetBtn').onclick = async function() {
+      const amt = parseFloat(document.getElementById('crashBetAmount').value);
+      if (!amt || amt<=0) { showCrashMsg("Enter a bet > 0"); return; }
+      showCrashMsg("");
+      const res = await fetch(`${API}/crash/bet`, {
+        method:'POST',
+        headers:{'Authorization':'Bearer '+authToken, 'Content-Type':'application/json'},
+        body: JSON.stringify({amount: amt})
+      });
+      const data = await res.json();
+      if (data.success) {
+        placedBet = {amount:amt, cashedOut:false};
+        refreshBalance();
+      } else {
+        showCrashMsg(data.message || "Bet failed");
+      }
+    };
+    // Cash Out
+    document.getElementById('crashCashoutBtn').onclick = async function() {
+      showCrashMsg('');
+      const res = await fetch(`${API}/crash/cashout`, {
+        method:'POST',
+        headers:{'Authorization':'Bearer '+authToken, 'Content-Type':'application/json'}
+      });
+      const data = await res.json();
+      if (data.success) {
+        placedBet = null;
+        showCrashMsg(`Cashed out at ${data.multiplier.toFixed(2)}x, won ${data.payout.toFixed(2)}!`);
+        refreshBalance();
+      } else {
+        showCrashMsg(data.message || "Cash out failed");
+      }
+    };
+
+    // UI Updater
+    function updateCrashUI(round) {
+      setText('crashMultiplier', (round.multiplier||1).toFixed(2)+'x');
+      setText('crashStatus', {
+        waiting: "Waiting for next round...",
+        running: "Round running!",
+        crashed: `Crashed at ${(round.multiplier||1).toFixed(2)}x`,
+        loading: "Loading..."
+      }[round.status] || "");
+      // Enable/disable bet/cashout
+      const betBtn = document.getElementById('crashBetBtn');
+      const cashoutBtn = document.getElementById('crashCashoutBtn');
+      betBtn.disabled = round.status!=='running' || placedBet;
+      cashoutBtn.disabled = !placedBet || placedBet.cashedOut || round.status!=='running';
+    }
+    function showCrashMsg(msg) {
+      document.getElementById('crashMsg').textContent = msg||'';
+    }
+
+    // Crash History
+    async function getCrashHistory() {
+      if (!authToken) return;
+      const res = await fetch(`${API}/history/crash`, {
+        headers:{'Authorization':'Bearer '+authToken}
+      });
+      const data = await res.json();
+      const tbody = document.querySelector('#crashHistory tbody');
+      tbody.innerHTML = '';
+      if (data.success && Array.isArray(data.history)) {
+        const lastRounds = data.history.slice(-10).reverse();
+        lastRounds.forEach(r => {
+          const crashAt = r.crashAt ? r.crashAt.toFixed(2) : '';
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${r.roundId||''}</td><td>${crashAt}</td>`;
+          tbody.appendChild(tr);
         });
-        const data = await res.json();
-        console.log("Login response:", data);
-        if (data.success && data.token) {
-            localStorage.setItem('token', data.token);
-            localStorage.setItem('username', data.username);
-            showGameInterface();
-        } else {
-            errorEl.textContent = data.message || 'Login failed.'; errorEl.classList.remove('hidden');
-        }
-    } catch (err) {
-        errorEl.textContent = 'Network error.'; errorEl.classList.remove('hidden');
-        console.error(err);
+      }
     }
-};
 
-document.getElementById('logoutButton').onclick = function() {
-    localStorage.removeItem('token'); localStorage.removeItem('username');
-    authToken = null;
-    showModal();
-};
-
-if (authToken && localStorage.getItem('username')) {
-    showGameInterface();
-} else {
-    showModal();
-}
-</script>
+    // Start with login page
+    gotoLogin();
+  </script>
 </body>
 </html>
