@@ -322,6 +322,43 @@ app.get('/api/history/:game', authenticateToken, async (req, res) => {
     res.json({ success: true, history: results });
 });
 
+// ------ CHATBOX API ------
+
+// Get latest 50 messages (newest last)
+app.get('/api/chat', async (req, res) => {
+    try {
+        const messages = await db.collection('chat_messages')
+            .find({})
+            .sort({ timestamp: -1 })
+            .limit(50)
+            .toArray();
+        res.json({ success: true, messages: messages.reverse() });
+    } catch (e) {
+        res.json({ success: false, message: 'Error fetching chat.' });
+    }
+});
+
+// Post a new chat message (requires login)
+app.post('/api/chat', authenticateToken, async (req, res) => {
+    try {
+        const username = req.user?.username;
+        if (!username) return res.status(401).json({ success: false, message: "Not logged in." });
+        const { message } = req.body;
+        if (!message || typeof message !== "string" || !message.trim()) {
+            return res.status(400).json({ success: false, message: "Message cannot be empty." });
+        }
+        const cleanMsg = message.slice(0, 300);
+        await db.collection('chat_messages').insertOne({
+            username,
+            message: cleanMsg,
+            timestamp: new Date()
+        });
+        res.json({ success: true });
+    } catch (e) {
+        res.json({ success: false, message: 'Error posting chat.' });
+    }
+});
+
 // ------ START ------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("Casino server listening on " + PORT));
