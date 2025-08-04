@@ -88,7 +88,6 @@ app.post('/api/signup', async (req, res) => {
         }).then(r => r.json());
         if (!captchaResponse.success) return res.json({ success: false, message: "Invalid CAPTCHA" });
 
-        // Give every new user a balance of 100 (fun mode!)
         const hash = await bcrypt.hash(password, 10);
         await usersCollection.insertOne({
             username,
@@ -98,7 +97,6 @@ app.post('/api/signup', async (req, res) => {
             emailVerified: false,
             created: new Date()
         });
-        // Optionally create email verification token here, but skip sending for now
         res.json({ success: true });
     } catch (e) {
         console.error("Signup error:", e);
@@ -163,7 +161,6 @@ app.post('/api/change-email', authenticateToken, async (req, res) => {
         if (!(await bcrypt.compare(currentPassword, user.password))) return res.json({ success: false, message: "Current password incorrect." });
         if (await usersCollection.findOne({ email: newEmail })) return res.json({ success: false, message: "Email already in use." });
         await usersCollection.updateOne({ username: req.user.username }, { $set: { email: newEmail, emailVerified: false } });
-        // Optionally: trigger sending new verification email here
         res.json({ success: true });
     } catch (e) {
         res.json({ success: false, message: e.message });
@@ -318,8 +315,60 @@ app.get('/api/history/:game', authenticateToken, async (req, res) => {
         project = { _id: 0 };
     }
 
-    let results = await collection.find(query, { projection: project }).sort({ created: -1, roundId: -1 }).limit(20).toArray();
+    let results = await collection.find(query, { projection: project }).sort({ created: -1, roundId: -1 }).limit(30).toArray();
     res.json({ success: true, history: results });
+});
+
+// ------ PROFILE API ------
+
+// Get a user's public profile & stats
+app.get('/api/profile/:username', async (req, res) => {
+    const username = req.params.username;
+    const user = await usersCollection.findOne({ username });
+    if (!user) return res.json({ success: false, message: "User not found" });
+    // Stats from history
+    let crash = await crashCollection.find({ "bets.username": username }).toArray();
+    let crashProfit = 0, crashBets = 0;
+    crash.forEach(round => {
+        (round.bets||[]).forEach(b => {
+            if (b.username === username) {
+                crashBets += b.amount || 0;
+                if (b.cashedOut) crashProfit += b.payout || 0;
+            }
+        });
+    });
+    let coinflip = await coinflipCollection.find({ username }).toArray();
+    let cfBets = 0, cfProfit = 0;
+    coinflip.forEach(r => { cfBets += r.amount||0; cfProfit += r.payout||0; });
+    let roulette = await rouletteCollection.find({ username }).toArray();
+    let roulBets = 0, roulProfit = 0;
+    roulette.forEach(r => { roulBets += r.amount||0; roulProfit += r.payout||0; });
+    let poker = await pokerCollection.find({ username }).toArray();
+    let pokerBets = 0, pokerProfit = 0;
+    poker.forEach(r => { pokerBets += r.amount||0; pokerProfit += r.payout||0; });
+    const stats = {
+        username: user.username,
+        created: user.created,
+        balance: user.balance,
+        crash: { totalBets: crashBets, totalProfit: crashProfit, net: crashProfit-crashBets },
+        coinflip: { totalBets: cfBets, totalProfit: cfProfit, net: cfProfit-cfBets },
+        roulette: { totalBets: roulBets, totalProfit: roulProfit, net: roulProfit-roulBets },
+        poker: { totalBets: pokerBets, totalProfit: pokerProfit, net: pokerProfit-pokerBets },
+        overall: {
+            totalBets: crashBets+cfBets+roulBets+pokerBets,
+            totalProfit: crashProfit+cfProfit+roulProfit+pokerProfit,
+            net: (crashProfit+cfProfit+roulProfit+pokerProfit) - (crashBets+cfBets+roulBets+pokerBets)
+        }
+    };
+    res.json({ success: true, stats });
+});
+
+// Search for usernames (simple match)
+app.get('/api/profiles/search', async (req, res) => {
+    const query = req.query.query || '';
+    if (!query) return res.json({ success: false, message: "No query" });
+    const users = await usersCollection.find({ username: { $regex: query, $options: "i" } }).limit(10).project({ username: 1 }).toArray();
+    res.json({ success: true, users });
 });
 
 // ------ CHATBOX API ------
