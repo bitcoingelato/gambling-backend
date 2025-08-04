@@ -10,7 +10,7 @@
     h2 { text-align: center; }
     .game-btn { display: block; width: 90%; margin: 12px auto; padding: 16px; font-size: 1.2em; background: #ffc107; color: #222; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
     .game-btn:disabled { opacity: .5; cursor: not-allowed; }
-    .hidden { display: none; }
+    .hidden { display: none !important; }
     .section { background: #191919; border-radius: 8px; padding: 18px; margin-top: 14px; }
     #balanceBox { margin: 10px 0 18px; text-align: center; font-size: 1.1em; }
     #logoutBtn { background: #e74c3c; color: #fff; border: none; border-radius: 6px; padding: 8px 12px; cursor: pointer; float: right; margin-top: -44px; }
@@ -64,11 +64,45 @@
     /* 3CP Visuals */
     #threecpPlayer, #threecpDealer { margin-top: 10px; }
     #threecpDecisionBtns { display: flex; gap: 16px; justify-content: center; margin: 10px 0; }
+    /* Auth and settings */
+    .input, input { width: 100%; padding: 10px; margin: 8px 0; border-radius: 5px; border: 1px solid #ffc107; background: #333; color: #fff; }
+    .captcha-wrap { margin: 12px auto 0 auto; display:flex; justify-content: center; }
+    #settingsSection input { width:90%; }
+    #settingsSection label { display:block; margin-top:10px; }
+    #settingsSection .settings-btn { width: 100%; margin: 6px 0 12px 0;}
+    #settingsMsg { margin-bottom: 10px; }
   </style>
+  <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
 </head>
 <body>
+  <!-- LOGIN/SIGNUP -->
+  <div class="container" id="loginPage">
+    <h2>Bitcoin Gelato Casino</h2>
+    <div id="loginBox">
+      <input class="input" id="loginUser" placeholder="Username">
+      <input class="input" id="loginPass" type="password" placeholder="Password">
+      <div class="captcha-wrap">
+        <div id="hcaptcha-login"></div>
+      </div>
+      <button class="game-btn" id="loginBtn">Login</button>
+      <p style="text-align:center;">No account? <a href="#" id="showSignup" style="color:#ffc107;">Sign Up</a></p>
+      <div class="err" id="loginErr"></div>
+    </div>
+    <div id="signupBox" class="hidden">
+      <input class="input" id="signupUser" placeholder="Username">
+      <input class="input" id="signupEmail" type="email" placeholder="Email">
+      <input class="input" id="signupPass" type="password" placeholder="Password">
+      <div class="captcha-wrap">
+        <div id="hcaptcha-signup"></div>
+      </div>
+      <button class="game-btn" id="signupBtn">Sign Up (Fun Mode)</button>
+      <p style="text-align:center;">Already have an account? <a href="#" id="showLogin" style="color:#ffc107;">Login</a></p>
+      <div class="err" id="signupErr"></div>
+    </div>
+  </div>
+
   <!-- MAIN MENU -->
-  <div class="container" id="mainPage">
+  <div class="container hidden" id="mainPage">
     <div id="userBox">
       Welcome, <b id="userName"></b>!
       <button id="logoutBtn">Logout</button>
@@ -83,23 +117,42 @@
     <button class="game-btn" id="btnSettings" style="background: #444; color: #ffc107;">Account Settings</button>
   </div>
 
-  <!-- 3 CARD POKER -->
-  <div class="container hidden" id="threecpSection">
+  <!-- CRASH -->
+  <div class="container hidden" id="crashSection">
     <button onclick="backToMenu()" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
-    <h2>3 Card Poker</h2>
+    <h2>Crash (Fun Mode)</h2>
     <div class="section">
+      <div id="crashStatus"></div>
+      <div id="crashMultiplier">1.00x</div>
       <div class="bet-row">
-        <input id="threecpBetAmount" type="number" step="0.01" min="0.01" value="1.00">
-        <button id="threecpAnteBtn">Ante</button>
+        <input id="crashBetAmount" type="number" step="0.01" min="0.01" value="1.00"> 
+        <button id="crashBetBtn">Place Bet</button>
+        <button id="crashCashoutBtn" disabled>Cash Out</button>
       </div>
-      <div id="threecpMsg" class="err"></div>
-      <div id="threecpPlayer"></div>
-      <div id="threecpDecisionBtns" class="hidden">
-        <button id="threecpPlayBtn">Play (Up Ante)</button>
-        <button id="threecpFoldBtn">Fold</button>
+      <div id="crashMsg" class="err"></div>
+    </div>
+    <div id="crashHistoryDiv">
+      <h3>Recent Crash Rounds</h3>
+      <table id="crashHistory">
+        <thead><tr><th>Round</th><th>Crash</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- COINFLIP -->
+  <div class="container hidden" id="coinflipSection">
+    <button onclick="backToMenu()" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
+    <h2>Coinflip</h2>
+    <div class="section">
+      <div class="bet-row flex">
+        <input id="coinflipBetAmount" type="number" step="0.01" min="0.01" value="1.00">
+        <button class="coin-btn" id="btnHeads">H</button>
+        <button class="coin-btn" id="btnTails">T</button>
+        <button id="coinflipBetBtn">Flip</button>
       </div>
-      <div id="threecpDealer"></div>
-      <div id="threecpResult">Waiting for bet...</div>
+      <div id="coinflipMsg" class="err"></div>
+      <div id="coinflipResult">Waiting for flip...</div>
     </div>
   </div>
 
@@ -123,103 +176,390 @@
     </div>
   </div>
 
-  <!-- ... keep your other game/account/setting sections ... -->
+  <!-- 3 CARD POKER -->
+  <div class="container hidden" id="threecpSection">
+    <button onclick="backToMenu()" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
+    <h2>3 Card Poker</h2>
+    <div class="section">
+      <div class="bet-row">
+        <input id="threecpBetAmount" type="number" step="0.01" min="0.01" value="1.00">
+        <button id="threecpAnteBtn">Ante</button>
+      </div>
+      <div id="threecpMsg" class="err"></div>
+      <div id="threecpPlayer"></div>
+      <div id="threecpDecisionBtns" class="hidden">
+        <button id="threecpPlayBtn">Play (Up Ante)</button>
+        <button id="threecpFoldBtn">Fold</button>
+      </div>
+      <div id="threecpDealer"></div>
+      <div id="threecpResult">Waiting for bet...</div>
+    </div>
+  </div>
+
+  <!-- ACCOUNT SETTINGS -->
+  <div class="container hidden" id="settingsSection">
+    <button onclick="backToMenu()" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
+    <h2>Account Settings</h2>
+    <div id="settingsMsg" class="err"></div>
+    <form id="formChangePassword" autocomplete="off">
+      <label>Change Password</label>
+      <input id="currentPassword" type="password" placeholder="Current Password" required>
+      <input id="newPassword" type="password" placeholder="New Password" required>
+      <input id="confirmNewPassword" type="password" placeholder="Confirm New Password" required>
+      <button type="submit" class="game-btn settings-btn">Change Password</button>
+    </form>
+    <form id="formChangeEmail" autocomplete="off">
+      <label>Change Email</label>
+      <input id="currentPassword2" type="password" placeholder="Current Password" required>
+      <input id="newEmail" type="email" placeholder="New Email" required>
+      <button type="submit" class="game-btn settings-btn">Change Email</button>
+    </form>
+  </div>
 
   <script>
-    // ---------- Helper: Card Rendering ----------
-    const rankToUnicode = {
-      'A':'🂡', 'K':'🂮', 'Q':'🂭', 'J':'🂫', 'T':'10', '9':'9', '8':'8', '7':'7', '6':'6', '5':'5', '4':'4', '3':'3', '2':'2'
-    };
-    const suitToUnicode = {
-      'H':'♥', 'D':'♦', 'C':'♣', 'S':'♠'
-    };
-    function renderCard(card) {
-      const rank = card[0], suit = card[1];
-      let color = (suit === 'H' || suit === 'D') ? 'red' : 'black';
-      // --- Swap out the innerHTML for an <img> if you want to use a custom image here! ---
-      // Example: return `<div class="card ${color}"><img src="cards/${card}.png"></div>`;
-      return `<div class="card ${color}">${rankToUnicode[rank] || rank}${suitToUnicode[suit] || ''}</div>`;
-    }
-    function renderCardBack() {
-      // --- Swap for your custom card back image here if desired ---
-      return `<div class="card back">🂠</div>`;
-    }
+    // ======= CONFIG =======
+    const API = "https://desolate-shore-72677-e0fe07c2f233.herokuapp.com/api";
+    // ======================
+    let authToken = '', user = '', crashPoll = null, placedBet = null, crashRoundId = 0;
+    let coinflipChoice = null;
+    let hcaptchaLoginToken = "", hcaptchaSignupToken = "";
 
-    // ---------- 3 CARD POKER ----------
-    let threecpGame = null; // { ante, playBet, player, dealer, state }
-    function resetThreecp() {
-      threecpGame = null;
-      document.getElementById('threecpBetAmount').value = "1.00";
-      setText('threecpMsg', "");
-      setText('threecpResult', "Waiting for bet...");
-      setText('threecpPlayer', "");
-      setText('threecpDealer', "");
-      document.getElementById('threecpDecisionBtns').classList.add('hidden');
+    // hCaptcha callback
+    window.onLoginHCaptcha = function(token) { hcaptchaLoginToken = token; };
+    window.onSignupHCaptcha = function(token) { hcaptchaSignupToken = token; };
+    function renderHCaptchaLogin() {
+      if (window.hcaptcha) {
+        hcaptcha.render('hcaptcha-login', {
+          sitekey: 'b1e64024-155e-43da-a5e6-9b56729c337e',
+          callback: onLoginHCaptcha
+        });
+      } else setTimeout(renderHCaptchaLogin, 500);
+    }
+    function renderHCaptchaSignup() {
+      if (window.hcaptcha) {
+        hcaptcha.render('hcaptcha-signup', {
+          sitekey: 'b1e64024-155e-43da-a5e6-9b56729c337e',
+          callback: onSignupHCaptcha
+        });
+      } else setTimeout(renderHCaptchaSignup, 500);
     }
 
-    document.getElementById('threecpAnteBtn').onclick = function() {
-      setText('threecpMsg', "");
-      let amt = parseFloat(document.getElementById('threecpBetAmount').value);
-      if (!amt || amt<=0) { setText('threecpMsg',"Enter a bet > 0"); return; }
-      // Deal cards!
-      let deck = makeDeck();
-      let player = drawHand(deck), dealer = drawHand(deck);
-      threecpGame = { ante: amt, playBet: 0, player, dealer, state: 'decision' };
-      showThreeCPHands();
-      document.getElementById('threecpDecisionBtns').classList.remove('hidden');
-      setText('threecpResult', "Do you want to Play (up ante) or Fold?");
-    };
+    // ---------- Auth/Login/Signup ----------
+    function show(id) { document.getElementById(id).classList.remove('hidden'); }
+    function hide(id) { document.getElementById(id).classList.add('hidden'); }
+    function setText(id, val) { document.getElementById(id).textContent = val; }
 
-    document.getElementById('threecpPlayBtn').onclick = function() {
-      if (!threecpGame || threecpGame.state !== 'decision') return;
-      threecpGame.playBet = threecpGame.ante;
-      threecpGame.state = 'done';
-      finishThreeCP(true);
-    };
-    document.getElementById('threecpFoldBtn').onclick = function() {
-      if (!threecpGame || threecpGame.state !== 'decision') return;
-      threecpGame.playBet = 0;
-      threecpGame.state = 'done';
-      finishThreeCP(false);
-    };
-
-    function showThreeCPHands() {
-      if (!threecpGame) return;
-      // Player cards face up
-      document.getElementById('threecpPlayer').innerHTML = "Your hand: <span class='card-row'>" +
-        threecpGame.player.map(renderCard).join('') + "</span>";
-      // Dealer cards face down (can show as card backs)
-      document.getElementById('threecpDealer').innerHTML = "Dealer: <span class='card-row'>" +
-        [renderCardBack(),renderCardBack(),renderCardBack()].join('') + "</span>";
+    function gotoLogin() {
+      hide('mainPage'); hide('crashSection'); hide('coinflipSection'); hide('rouletteSection'); hide('threecpSection'); hide('settingsSection');
+      show('loginPage');
+      show('loginBox'); hide('signupBox');
+      document.getElementById('loginErr').textContent = '';
+      document.getElementById('loginUser').value = '';
+      document.getElementById('loginPass').value = '';
+      hcaptchaLoginToken = '';
+      document.getElementById('hcaptcha-login').innerHTML = '';
+      renderHCaptchaLogin();
+    }
+    function gotoSignup() {
+      hide('mainPage'); hide('crashSection'); hide('coinflipSection'); hide('rouletteSection'); hide('threecpSection'); hide('settingsSection');
+      show('loginPage');
+      hide('loginBox'); show('signupBox');
+      document.getElementById('signupErr').textContent = '';
+      document.getElementById('signupUser').value = '';
+      document.getElementById('signupPass').value = '';
+      document.getElementById('signupEmail').value = '';
+      hcaptchaSignupToken = '';
+      document.getElementById('hcaptcha-signup').innerHTML = '';
+      renderHCaptchaSignup();
     }
 
-    function finishThreeCP(played) {
-      // Reveal dealer cards
-      document.getElementById('threecpDealer').innerHTML = "Dealer: <span class='card-row'>" +
-        threecpGame.dealer.map(renderCard).join('') + "</span>";
-      document.getElementById('threecpDecisionBtns').classList.add('hidden');
-      if (!played) {
-        setText('threecpResult', "You folded. You lose your ante.");
-        return;
+    document.getElementById('showSignup').onclick = e => { e.preventDefault(); gotoSignup(); };
+    document.getElementById('showLogin').onclick = e => { e.preventDefault(); gotoLogin(); };
+
+    document.getElementById('loginBtn').onclick = async function() {
+      const username = document.getElementById('loginUser').value.trim();
+      const password = document.getElementById('loginPass').value;
+      document.getElementById('loginErr').textContent = '';
+      if (!username || !password) { document.getElementById('loginErr').textContent = 'Enter both fields.'; return; }
+      if (!hcaptchaLoginToken) { document.getElementById('loginErr').textContent = "Please complete the captcha."; return; }
+      const res = await fetch(`${API}/login`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({username, password, captchaToken: hcaptchaLoginToken})
+      });
+      const data = await res.json();
+      if (data.success) {
+        authToken = data.token; user = data.username;
+        afterLogin();
+      } else {
+        document.getElementById('loginErr').textContent = data.message || "Login failed";
+        if (window.hcaptcha) hcaptcha.reset(document.getElementById('hcaptcha-login').firstChild);
+        hcaptchaLoginToken = "";
       }
-      // Hand comparison (simple: highest card wins)
-      let playerVal = Math.max(...threecpGame.player.map(c => "23456789TJQKA".indexOf(c[0])));
-      let dealerVal = Math.max(...threecpGame.dealer.map(c => "23456789TJQKA".indexOf(c[0])));
-      let win = playerVal > dealerVal;
-      let payout = win ? (threecpGame.ante + threecpGame.playBet) * 2 : 0;
-      setText('threecpResult', win ? `You win! Payout: ${payout}` : "You lose.");
+    };
+
+    document.getElementById('signupBtn').onclick = async function() {
+      const username = document.getElementById('signupUser').value.trim();
+      const email = document.getElementById('signupEmail').value.trim();
+      const password = document.getElementById('signupPass').value;
+      document.getElementById('signupErr').textContent = '';
+      if (!username || !email || !password) { document.getElementById('signupErr').textContent = 'Fill all fields.'; return; }
+      if (!hcaptchaSignupToken) { document.getElementById('signupErr').textContent = "Please complete the captcha."; return; }
+      const res = await fetch(`${API}/signup`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({username, email, password, captchaToken: hcaptchaSignupToken})
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Immediately log user in for fun mode
+        const res2 = await fetch(`${API}/login`, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({username, password, captchaToken: hcaptchaSignupToken})
+        });
+        const data2 = await res2.json();
+        if (data2.success) {
+          authToken = data2.token; user = data2.username;
+          afterLogin();
+        } else {
+          document.getElementById('signupErr').textContent = "Signup succeeded, but login failed.";
+        }
+      } else {
+        document.getElementById('signupErr').textContent = data.message || "Signup failed";
+        if (window.hcaptcha) hcaptcha.reset(document.getElementById('hcaptcha-signup').firstChild);
+        hcaptchaSignupToken = "";
+      }
+    };
+
+    function afterLogin() {
+      hide('loginPage'); hide('settingsSection');
+      show('mainPage');
+      setText('userName', user);
+      refreshBalance();
     }
 
-    function makeDeck() {
-      let suits = ['H','D','C','S'], ranks = ['2','3','4','5','6','7','8','9','T','J','Q','K','A'], d = [];
-      for (let s of suits) for (let r of ranks) d.push(r+s);
-      for (let i=d.length-1;i>0;i--) { let j=Math.floor(Math.random()*(i+1)); [d[i],d[j]]=[d[j],d[i]];}
-      return d;
-    }
-    function drawHand(deck) { return [deck.pop(), deck.pop(), deck.pop()]; }
+    document.getElementById('logoutBtn').onclick = function() {
+      authToken = ''; user = '';
+      gotoLogin();
+    };
 
-    // ---------- ROULETTE ----------
-    // Wheel colors order: red, black, red, black, green, red, black, ... (7 slots for demo)
+    document.getElementById('btnSettings').onclick = function() {
+      hide('mainPage');
+      show('settingsSection');
+      document.getElementById('settingsMsg').textContent = "";
+      document.getElementById('formChangePassword').reset();
+      document.getElementById('formChangeEmail').reset();
+    };
+
+    // ---------- Main Page Buttons ----------
+    document.getElementById('btnCrash').onclick = function() {
+      hide('mainPage'); hide('settingsSection');
+      show('crashSection');
+      startCrashPoll();
+    };
+    document.getElementById('btnCoinflip').onclick = function() {
+      hide('mainPage'); hide('settingsSection');
+      show('coinflipSection');
+      resetCoinflip();
+    };
+    document.getElementById('btnRoulette').onclick = function() {
+      hide('mainPage'); hide('settingsSection');
+      show('rouletteSection');
+      resetRoulette();
+    };
+    document.getElementById('btn3cp').onclick = function() {
+      hide('mainPage'); hide('settingsSection');
+      show('threecpSection');
+      resetThreecp();
+    };
+    function backToMenu() {
+      hide('crashSection'); hide('coinflipSection'); hide('rouletteSection'); hide('threecpSection'); hide('settingsSection');
+      show('mainPage');
+      stopCrashPoll();
+      refreshBalance();
+    }
+
+    // ---------- Fun Mode Balance ----------
+    async function refreshBalance() {
+      if (!authToken) return;
+      const res = await fetch(`${API}/balance`, {
+        headers:{'Authorization':'Bearer '+authToken}
+      });
+      const data = await res.json();
+      if (data.success) {
+        setText('balance', data.balance.toFixed(2));
+      } else {
+        setText('balance', "0.00");
+      }
+    }
+
+    // ---------- ACCOUNT SETTINGS ----------
+    document.getElementById('formChangePassword').onsubmit = async function(e){
+      e.preventDefault();
+      let msg = "";
+      const currentPassword = document.getElementById('currentPassword').value;
+      const newPassword = document.getElementById('newPassword').value;
+      const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+      if(!currentPassword || !newPassword || !confirmNewPassword) msg = "All fields required.";
+      else if(newPassword !== confirmNewPassword) msg = "Passwords do not match.";
+      else if(newPassword.length < 6) msg = "New password too short.";
+      if(msg){ document.getElementById('settingsMsg').textContent = msg; return; }
+      const res = await fetch(`${API}/change-password`, {
+        method:'POST',
+        headers:{'Authorization':'Bearer '+authToken, 'Content-Type':'application/json'},
+        body: JSON.stringify({currentPassword, newPassword})
+      });
+      const data = await res.json();
+      document.getElementById('settingsMsg').textContent = data.success ? "Password changed!" : (data.message || "Error");
+      if(data.success) this.reset();
+    };
+
+    document.getElementById('formChangeEmail').onsubmit = async function(e){
+      e.preventDefault();
+      let msg = "";
+      const currentPassword = document.getElementById('currentPassword2').value;
+      const newEmail = document.getElementById('newEmail').value;
+      if(!currentPassword || !newEmail) msg = "All fields required.";
+      else if(!/^\S+@\S+\.\S+$/.test(newEmail)) msg = "Invalid email.";
+      if(msg){ document.getElementById('settingsMsg').textContent = msg; return; }
+      const res = await fetch(`${API}/change-email`, {
+        method:'POST',
+        headers:{'Authorization':'Bearer '+authToken, 'Content-Type':'application/json'},
+        body: JSON.stringify({currentPassword, newEmail})
+      });
+      const data = await res.json();
+      document.getElementById('settingsMsg').textContent = data.success ? "Email changed!" : (data.message || "Error");
+      if(data.success) this.reset();
+    };
+
+    // ---------- CRASH GAME ----------
+    function startCrashPoll() {
+      placedBet = null;
+      crashRoundId = 0;
+      updateCrashUI({status:'loading', multiplier:1});
+      getCrashHistory();
+      fetchCrashState();
+      if (crashPoll) clearInterval(crashPoll);
+      crashPoll = setInterval(fetchCrashState, 1000);
+    }
+    function stopCrashPoll() {
+      if (crashPoll) clearInterval(crashPoll);
+      crashPoll = null;
+    }
+    async function fetchCrashState() {
+      if (!authToken) return;
+      const res = await fetch(`${API}/crash/state`, {headers:{'Authorization':'Bearer '+authToken}});
+      const data = await res.json();
+      if (data.success && data.round) {
+        crashRoundId = data.round.roundId;
+        updateCrashUI(data.round);
+      }
+    }
+    document.getElementById('crashBetBtn').onclick = async function() {
+      const amt = parseFloat(document.getElementById('crashBetAmount').value);
+      if (!amt || amt<=0) { showCrashMsg("Enter a bet > 0"); return; }
+      showCrashMsg("");
+      const res = await fetch(`${API}/crash/bet`, {
+        method:'POST',
+        headers:{'Authorization':'Bearer '+authToken, 'Content-Type':'application/json'},
+        body: JSON.stringify({amount: amt})
+      });
+      const data = await res.json();
+      if (data.success) {
+        placedBet = {amount:amt, cashedOut:false};
+        refreshBalance();
+      } else {
+        showCrashMsg(data.message || "Bet failed");
+      }
+    };
+    document.getElementById('crashCashoutBtn').onclick = async function() {
+      showCrashMsg('');
+      const res = await fetch(`${API}/crash/cashout`, {
+        method:'POST',
+        headers:{'Authorization':'Bearer '+authToken, 'Content-Type':'application/json'}
+      });
+      const data = await res.json();
+      if (data.success) {
+        placedBet = null;
+        showCrashMsg(`Cashed out at ${data.multiplier.toFixed(2)}x, won ${data.payout.toFixed(2)}!`);
+        refreshBalance();
+      } else {
+        showCrashMsg(data.message || "Cash out failed");
+      }
+    };
+    function updateCrashUI(round) {
+      setText('crashMultiplier', (round.multiplier||1).toFixed(2)+'x');
+      setText('crashStatus', {
+        waiting: "Waiting for next round...",
+        running: "Round running!",
+        crashed: `Crashed at ${(round.multiplier||1).toFixed(2)}x`,
+        loading: "Loading..."
+      }[round.status] || "");
+      const betBtn = document.getElementById('crashBetBtn');
+      const cashoutBtn = document.getElementById('crashCashoutBtn');
+      betBtn.disabled = round.status!=='running' || placedBet;
+      cashoutBtn.disabled = !placedBet || placedBet.cashedOut || round.status!=='running';
+    }
+    function showCrashMsg(msg) {
+      document.getElementById('crashMsg').textContent = msg||'';
+    }
+    async function getCrashHistory() {
+      if (!authToken) return;
+      const res = await fetch(`${API}/history/crash`, {
+        headers:{'Authorization':'Bearer '+authToken}
+      });
+      const data = await res.json();
+      const tbody = document.querySelector('#crashHistory tbody');
+      tbody.innerHTML = '';
+      if (data.success && Array.isArray(data.history)) {
+        const lastRounds = data.history.slice(-10).reverse();
+        lastRounds.forEach(r => {
+          const crashAt = r.crashAt ? r.crashAt.toFixed(2) : '';
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${r.roundId||''}</td><td>${crashAt}</td>`;
+          tbody.appendChild(tr);
+        });
+      }
+    }
+
+    // ---------- COINFLIP GAME ----------
+    function resetCoinflip() {
+      coinflipChoice = null;
+      document.getElementById('btnHeads').classList.remove('selected');
+      document.getElementById('btnTails').classList.remove('selected');
+      document.getElementById('coinflipBetAmount').value = "1.00";
+      setText('coinflipResult', "Waiting for flip...");
+      setText('coinflipMsg', "");
+    }
+    document.getElementById('btnHeads').onclick = function() {
+      coinflipChoice = 'heads';
+      this.classList.add('selected');
+      document.getElementById('btnTails').classList.remove('selected');
+    };
+    document.getElementById('btnTails').onclick = function() {
+      coinflipChoice = 'tails';
+      this.classList.add('selected');
+      document.getElementById('btnHeads').classList.remove('selected');
+    };
+    document.getElementById('coinflipBetBtn').onclick = async function() {
+      setText('coinflipMsg', "");
+      const amt = parseFloat(document.getElementById('coinflipBetAmount').value);
+      if (!amt || amt<=0) { setText('coinflipMsg',"Enter a bet > 0"); return; }
+      if (!coinflipChoice) { setText('coinflipMsg',"Pick heads or tails"); return; }
+      const res = await fetch(`${API}/coinflip/bet`, {
+        method:'POST',
+        headers:{'Authorization':'Bearer '+authToken, 'Content-Type':'application/json'},
+        body: JSON.stringify({amount: amt, choice: coinflipChoice})
+      });
+      const data = await res.json();
+      if (data.success) {
+        setText('coinflipResult', `Result: ${data.result}. ${data.win?"You win!":"You lose."} ${data.win?("Won "+data.payout):""}`);
+        refreshBalance();
+      } else {
+        setText('coinflipMsg', data.message || "Bet failed");
+      }
+    };
+
+    // ---------- ROULETTE GAME ----------
+    // Wheel colors order: red, black, red, black, green, red, black (7 slots for demo)
     const rouletteColors = ['red','black','red','black','green','red','black'];
     let rouletteSpinning = false, rouletteResultIndex = 0;
     document.getElementById('btnRed').onclick = function() { rouletteBet('red'); };
@@ -258,31 +598,88 @@
       }, 3200);
     }
 
-    // ---------- Utility ----------
-    function setText(id, val) { document.getElementById(id).textContent = val; }
-    function backToMenu() {
-      // Hide all game sections, show main
-      document.querySelectorAll('.container').forEach(el => el.classList.add('hidden'));
-      document.getElementById('mainPage').classList.remove('hidden');
-      // Reset games for next use
-      resetThreecp();
-      resetRoulette();
+    // ---------- 3 CARD POKER ----------
+    const rankToUnicode = {
+      'A':'🂡', 'K':'🂮', 'Q':'🂭', 'J':'🂫', 'T':'10', '9':'9', '8':'8', '7':'7', '6':'6', '5':'5', '4':'4', '3':'3', '2':'2'
+    };
+    const suitToUnicode = {
+      'H':'♥', 'D':'♦', 'C':'♣', 'S':'♠'
+    };
+    function renderCard(card) {
+      const rank = card[0], suit = card[1];
+      let color = (suit === 'H' || suit === 'D') ? 'red' : 'black';
+      // Swap for <img src="YOUR_IMAGE_PATH"> for custom art
+      return `<div class="card ${color}">${rankToUnicode[rank] || rank}${suitToUnicode[suit] || ''}</div>`;
     }
-    // -- DEMO: Show main page on load
-    document.querySelectorAll('.container').forEach(el => el.classList.add('hidden'));
-    document.getElementById('mainPage').classList.remove('hidden');
-    // Demo: wire up menu buttons
-    document.getElementById('btn3cp').onclick = function() {
-      document.querySelectorAll('.container').forEach(el => el.classList.add('hidden'));
-      document.getElementById('threecpSection').classList.remove('hidden');
-      resetThreecp();
+    function renderCardBack() {
+      return `<div class="card back">🂠</div>`;
+    }
+    let threecpGame = null;
+    function resetThreecp() {
+      threecpGame = null;
+      document.getElementById('threecpBetAmount').value = "1.00";
+      setText('threecpMsg', "");
+      setText('threecpResult', "Waiting for bet...");
+      setText('threecpPlayer', "");
+      setText('threecpDealer', "");
+      document.getElementById('threecpDecisionBtns').classList.add('hidden');
+    }
+    document.getElementById('threecpAnteBtn').onclick = function() {
+      setText('threecpMsg', "");
+      let amt = parseFloat(document.getElementById('threecpBetAmount').value);
+      if (!amt || amt<=0) { setText('threecpMsg',"Enter a bet > 0"); return; }
+      // Deal cards!
+      let deck = makeDeck();
+      let player = drawHand(deck), dealer = drawHand(deck);
+      threecpGame = { ante: amt, playBet: 0, player, dealer, state: 'decision' };
+      showThreeCPHands();
+      document.getElementById('threecpDecisionBtns').classList.remove('hidden');
+      setText('threecpResult', "Do you want to Play (up ante) or Fold?");
     };
-    document.getElementById('btnRoulette').onclick = function() {
-      document.querySelectorAll('.container').forEach(el => el.classList.add('hidden'));
-      document.getElementById('rouletteSection').classList.remove('hidden');
-      resetRoulette();
+    document.getElementById('threecpPlayBtn').onclick = function() {
+      if (!threecpGame || threecpGame.state !== 'decision') return;
+      threecpGame.playBet = threecpGame.ante;
+      threecpGame.state = 'done';
+      finishThreeCP(true);
     };
-    // ... wire up Crash, Coinflip, Settings as before ...
+    document.getElementById('threecpFoldBtn').onclick = function() {
+      if (!threecpGame || threecpGame.state !== 'decision') return;
+      threecpGame.playBet = 0;
+      threecpGame.state = 'done';
+      finishThreeCP(false);
+    };
+    function showThreeCPHands() {
+      if (!threecpGame) return;
+      document.getElementById('threecpPlayer').innerHTML = "Your hand: <span class='card-row'>" +
+        threecpGame.player.map(renderCard).join('') + "</span>";
+      document.getElementById('threecpDealer').innerHTML = "Dealer: <span class='card-row'>" +
+        [renderCardBack(),renderCardBack(),renderCardBack()].join('') + "</span>";
+    }
+    function finishThreeCP(played) {
+      document.getElementById('threecpDealer').innerHTML = "Dealer: <span class='card-row'>" +
+        threecpGame.dealer.map(renderCard).join('') + "</span>";
+      document.getElementById('threecpDecisionBtns').classList.add('hidden');
+      if (!played) {
+        setText('threecpResult', "You folded. You lose your ante.");
+        return;
+      }
+      // Hand comparison (simple: highest card wins)
+      let playerVal = Math.max(...threecpGame.player.map(c => "23456789TJQKA".indexOf(c[0])));
+      let dealerVal = Math.max(...threecpGame.dealer.map(c => "23456789TJQKA".indexOf(c[0])));
+      let win = playerVal > dealerVal;
+      let payout = win ? (threecpGame.ante + threecpGame.playBet) * 2 : 0;
+      setText('threecpResult', win ? `You win! Payout: ${payout}` : "You lose.");
+    }
+    function makeDeck() {
+      let suits = ['H','D','C','S'], ranks = ['2','3','4','5','6','7','8','9','T','J','Q','K','A'], d = [];
+      for (let s of suits) for (let r of ranks) d.push(r+s);
+      for (let i=d.length-1;i>0;i--) { let j=Math.floor(Math.random()*(i+1)); [d[i],d[j]]=[d[j],d[i]];}
+      return d;
+    }
+    function drawHand(deck) { return [deck.pop(), deck.pop(), deck.pop()]; }
+
+    // --- Initial view ---
+    gotoLogin();
   </script>
 </body>
 </html>
