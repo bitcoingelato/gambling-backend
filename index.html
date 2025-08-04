@@ -19,6 +19,7 @@
     .bet-row { text-align: center; margin-bottom: 8px; }
     .bet-row input { width: 60px; }
     .err { color: #e74c3c; font-size: .98em; text-align: center; }
+    /* Cards */
     .card-row { display: flex; justify-content: center; gap: 12px; margin: 10px 0; }
     .card {
       font-size: 2em;
@@ -32,6 +33,7 @@
     .card.red { color: #d32f2f; }
     .card.black { color: #111; }
     .card.back { background: #222; color: #ffc107; border-style: dashed; }
+    /* Roulette */
     .roulette-wrapper { display: flex; flex-direction: column; align-items: center; }
     .roulette-wheel {
       width: 160px; height: 160px; border-radius: 50%; border: 5px solid #ffc107; margin: 12px 0 6px 0;
@@ -59,8 +61,10 @@
     .roul-btn.red { background: #c0392b; color: #fff;}
     .roul-btn.black { background: #222; color: #fff;}
     .roul-btn.green { background: #27ae60; color: #fff;}
+    /* 3CP Visuals */
     #threecpPlayer, #threecpDealer { margin-top: 10px; }
     #threecpDecisionBtns { display: flex; gap: 16px; justify-content: center; margin: 10px 0; }
+    /* Auth and settings */
     .input, input { width: 100%; padding: 10px; margin: 8px 0; border-radius: 5px; border: 1px solid #ffc107; background: #333; color: #fff; }
     .captcha-wrap { margin: 12px auto 0 auto; display:flex; justify-content: center; }
     #settingsSection input { width:90%; }
@@ -212,37 +216,10 @@
     </form>
   </div>
 
-  <!-- PROFILE SECTION -->
-  <div class="container hidden" id="profileSection">
-    <button onclick="backToMenu()" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
-    <h2>Profile</h2>
-    <div>
-      <input id="profileSearchInput" placeholder="Search username..." style="width:65%;margin-bottom:6px;">
-      <button id="profileSearchBtn" style="background:#ffc107;color:#222;border:none;padding:6px 12px;border-radius:4px;">Search</button>
-      <button id="myProfileBtn" style="margin-left:10px;background:#444;color:#ffc107;border:none;padding:6px 12px;border-radius:4px;">My Profile</button>
-    </div>
-    <div id="profileStats"></div>
-  </div>
-
-  <!-- ==== Chatbox UI ==== -->
-  <div id="chatbox" style="display:none;position:fixed;bottom:0;right:0;width:320px;max-width:98vw;
-    background:#222;border-top-left-radius:12px;box-shadow:0 0 12px #000c;
-    border:1.5px solid #ffc107;z-index:1001;display:flex;flex-direction:column;
-    transition:height 0.2s;">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 14px;background:#191919;color:#ffc107;border-top-left-radius:10px;">
-      <span style="font-weight:bold;">💬 Chat</span>
-      <button id="chatboxToggle" style="background:none;border:none;color:#ffc107;font-size:1.2em;cursor:pointer;">_</button>
-    </div>
-    <div id="chatMessages" style="flex:1;overflow-y:auto;padding:8px 10px;height:180px;max-height:280px;"></div>
-    <form id="chatForm" style="display:flex;gap:6px;padding:7px;background:#232323;border-bottom-left-radius:10px;">
-      <input id="chatInput" type="text" maxlength="300" autocomplete="off" placeholder="Type a message..." style="flex:1;padding:7px;background:#191919;color:#fff;border:1px solid #ffc107;border-radius:6px;">
-      <button type="submit" style="background:#ffc107;color:#222;border:none;border-radius:6px;padding:6px 13px;font-weight:bold;">Send</button>
-    </form>
-  </div>
-
   <script>
     // ======= CONFIG =======
-    const API = "";
+    const API = "https://desolate-shore-72677-e0fe07c2f233.herokuapp.com/api";
+    // ======================
     let authToken = '', user = '', crashPoll = null, placedBet = null, crashRoundId = 0;
     let coinflipChoice = null;
     let hcaptchaLoginToken = "", hcaptchaSignupToken = "";
@@ -273,7 +250,7 @@
     function setText(id, val) { document.getElementById(id).textContent = val; }
 
     function gotoLogin() {
-      hide('mainPage'); hide('crashSection'); hide('coinflipSection'); hide('rouletteSection'); hide('threecpSection'); hide('settingsSection'); hide('profileSection');
+      hide('mainPage'); hide('crashSection'); hide('coinflipSection'); hide('rouletteSection'); hide('threecpSection'); hide('settingsSection');
       show('loginPage');
       show('loginBox'); hide('signupBox');
       document.getElementById('loginErr').textContent = '';
@@ -284,7 +261,7 @@
       renderHCaptchaLogin();
     }
     function gotoSignup() {
-      hide('mainPage'); hide('crashSection'); hide('coinflipSection'); hide('rouletteSection'); hide('threecpSection'); hide('settingsSection'); hide('profileSection');
+      hide('mainPage'); hide('crashSection'); hide('coinflipSection'); hide('rouletteSection'); hide('threecpSection'); hide('settingsSection');
       show('loginPage');
       hide('loginBox'); show('signupBox');
       document.getElementById('signupErr').textContent = '';
@@ -305,7 +282,7 @@
       document.getElementById('loginErr').textContent = '';
       if (!username || !password) { document.getElementById('loginErr').textContent = 'Enter both fields.'; return; }
       if (!hcaptchaLoginToken) { document.getElementById('loginErr').textContent = "Please complete the captcha."; return; }
-      const res = await fetch(`/api/login`, {
+      const res = await fetch(`${API}/login`, {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({username, password, captchaToken: hcaptchaLoginToken})
       });
@@ -327,13 +304,14 @@
       document.getElementById('signupErr').textContent = '';
       if (!username || !email || !password) { document.getElementById('signupErr').textContent = 'Fill all fields.'; return; }
       if (!hcaptchaSignupToken) { document.getElementById('signupErr').textContent = "Please complete the captcha."; return; }
-      const res = await fetch(`/api/signup`, {
+      const res = await fetch(`${API}/signup`, {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({username, email, password, captchaToken: hcaptchaSignupToken})
       });
       const data = await res.json();
       if (data.success) {
-        const res2 = await fetch(`/api/login`, {
+        // Immediately log user in for fun mode
+        const res2 = await fetch(`${API}/login`, {
           method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({username, password, captchaToken: hcaptchaSignupToken})
         });
@@ -352,17 +330,15 @@
     };
 
     function afterLogin() {
-      hide('loginPage'); hide('settingsSection'); hide('profileSection');
+      hide('loginPage'); hide('settingsSection');
       show('mainPage');
       setText('userName', user);
       refreshBalance();
-      updateChatboxVisibility();
     }
 
     document.getElementById('logoutBtn').onclick = function() {
       authToken = ''; user = '';
       gotoLogin();
-      updateChatboxVisibility();
     };
 
     document.getElementById('btnSettings').onclick = function() {
@@ -373,36 +349,38 @@
       document.getElementById('formChangeEmail').reset();
     };
 
+    // ---------- Main Page Buttons ----------
     document.getElementById('btnCrash').onclick = function() {
-      hide('mainPage'); hide('settingsSection'); hide('profileSection');
+      hide('mainPage'); hide('settingsSection');
       show('crashSection');
       startCrashPoll();
     };
     document.getElementById('btnCoinflip').onclick = function() {
-      hide('mainPage'); hide('settingsSection'); hide('profileSection');
+      hide('mainPage'); hide('settingsSection');
       show('coinflipSection');
       resetCoinflip();
     };
     document.getElementById('btnRoulette').onclick = function() {
-      hide('mainPage'); hide('settingsSection'); hide('profileSection');
+      hide('mainPage'); hide('settingsSection');
       show('rouletteSection');
       resetRoulette();
     };
     document.getElementById('btn3cp').onclick = function() {
-      hide('mainPage'); hide('settingsSection'); hide('profileSection');
+      hide('mainPage'); hide('settingsSection');
       show('threecpSection');
       resetThreecp();
     };
     function backToMenu() {
-      hide('crashSection'); hide('coinflipSection'); hide('rouletteSection'); hide('threecpSection'); hide('settingsSection'); hide('profileSection');
+      hide('crashSection'); hide('coinflipSection'); hide('rouletteSection'); hide('threecpSection'); hide('settingsSection');
       show('mainPage');
       stopCrashPoll();
       refreshBalance();
     }
 
+    // ---------- Fun Mode Balance ----------
     async function refreshBalance() {
       if (!authToken) return;
-      const res = await fetch(`/api/balance`, {
+      const res = await fetch(`${API}/balance`, {
         headers:{'Authorization':'Bearer '+authToken}
       });
       const data = await res.json();
@@ -413,6 +391,7 @@
       }
     }
 
+    // ---------- ACCOUNT SETTINGS ----------
     document.getElementById('formChangePassword').onsubmit = async function(e){
       e.preventDefault();
       let msg = "";
@@ -423,7 +402,7 @@
       else if(newPassword !== confirmNewPassword) msg = "Passwords do not match.";
       else if(newPassword.length < 6) msg = "New password too short.";
       if(msg){ document.getElementById('settingsMsg').textContent = msg; return; }
-      const res = await fetch(`/api/change-password`, {
+      const res = await fetch(`${API}/change-password`, {
         method:'POST',
         headers:{'Authorization':'Bearer '+authToken, 'Content-Type':'application/json'},
         body: JSON.stringify({currentPassword, newPassword})
@@ -441,7 +420,7 @@
       if(!currentPassword || !newEmail) msg = "All fields required.";
       else if(!/^\S+@\S+\.\S+$/.test(newEmail)) msg = "Invalid email.";
       if(msg){ document.getElementById('settingsMsg').textContent = msg; return; }
-      const res = await fetch(`/api/change-email`, {
+      const res = await fetch(`${API}/change-email`, {
         method:'POST',
         headers:{'Authorization':'Bearer '+authToken, 'Content-Type':'application/json'},
         body: JSON.stringify({currentPassword, newEmail})
@@ -451,175 +430,379 @@
       if(data.success) this.reset();
     };
 
-    // Crash history: only show last 30
-    function getCrashHistory() {
+    // ---------- CRASH GAME ----------
+    function startCrashPoll() {
+      placedBet = null;
+      crashRoundId = 0;
+      updateCrashUI({status:'loading', multiplier:1});
+      getCrashHistory();
+      fetchCrashState();
+      if (crashPoll) clearInterval(crashPoll);
+      crashPoll = setInterval(fetchCrashState, 1000);
+    }
+    function stopCrashPoll() {
+      if (crashPoll) clearInterval(crashPoll);
+      crashPoll = null;
+    }
+    async function fetchCrashState() {
       if (!authToken) return;
-      fetch(`/api/history/crash`, {
-        headers:{'Authorization':'Bearer '+authToken}
-      }).then(res=>res.json()).then(data=>{
-        const tbody = document.querySelector('#crashHistory tbody');
-        tbody.innerHTML = '';
-        if (data.success && Array.isArray(data.history)) {
-          const lastRounds = data.history.slice(-30).reverse();
-          lastRounds.forEach(r => {
-            const crashAt = r.crashAt ? r.crashAt.toFixed(2) : '';
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${r.roundId||''}</td><td>${crashAt}</td>`;
-            tbody.appendChild(tr);
-          });
-        }
+      const res = await fetch(`${API}/crash/state`, {headers:{'Authorization':'Bearer '+authToken}});
+      const data = await res.json();
+      if (data.success && data.round) {
+        crashRoundId = data.round.roundId;
+        updateCrashUI(data.round);
+      }
+    }
+    document.getElementById('crashBetBtn').onclick = async function() {
+      const amt = parseFloat(document.getElementById('crashBetAmount').value);
+      if (!amt || amt<=0) { showCrashMsg("Enter a bet > 0"); return; }
+      showCrashMsg("");
+      const res = await fetch(`${API}/crash/bet`, {
+        method:'POST',
+        headers:{'Authorization':'Bearer '+authToken, 'Content-Type':'application/json'},
+        body: JSON.stringify({amount: amt})
       });
-    }
-
-    // ---------- PROFILE SECTION ----------
-    document.getElementById('btnSettings').insertAdjacentHTML('afterend', `
-      <button class="game-btn" id="btnProfile" style="background:#333;color:#ffc107;">Profile</button>
-    `);
-    document.getElementById('btnProfile').onclick = function() {
-      hide('mainPage');
-      show('profileSection');
-      loadProfile(user);
-    };
-    document.getElementById('myProfileBtn').onclick = function() {
-      loadProfile(user);
-    };
-    document.getElementById('profileSearchBtn').onclick = function() {
-      const q = document.getElementById('profileSearchInput').value.trim();
-      if (!q) return;
-      fetch(`/api/profiles/search?query=` + encodeURIComponent(q))
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            document.getElementById('profileStats').innerHTML =
-              'Results:<br>' +
-              data.users.map(u => `<a href="#" onclick="loadProfile('${u.username}');return false;">${u.username}</a>`).join(', ');
-          }
-        });
-    };
-    window.loadProfile = function(username) {
-      fetch(`/api/profile/` + encodeURIComponent(username))
-        .then(res => res.json())
-        .then(data => {
-          if (!data.success) {
-            document.getElementById('profileStats').innerHTML = 'User not found.';
-            return;
-          }
-          const s = data.stats;
-          document.getElementById('profileStats').innerHTML =
-            `<b>${s.username}</b> (joined: ${new Date(s.created).toLocaleDateString()})<br>
-            Current Balance: ${s.balance}<br>
-            <br>
-            <b>Overall net profit/loss:</b> <span style="color:${s.overall.net>=0?'#4caf50':'#e74c3c'}">${s.overall.net.toFixed(2)}</span><br>
-            <u>Crash:</u> bets: ${s.crash.totalBets}, won: ${s.crash.totalProfit}, net: <span style="color:${s.crash.net>=0?'#4caf50':'#e74c3c'}">${s.crash.net.toFixed(2)}</span><br>
-            <u>Coinflip:</u> bets: ${s.coinflip.totalBets}, won: ${s.coinflip.totalProfit}, net: <span style="color:${s.coinflip.net>=0?'#4caf50':'#e74c3c'}">${s.coinflip.net.toFixed(2)}</span><br>
-            <u>Roulette:</u> bets: ${s.roulette.totalBets}, won: ${s.roulette.totalProfit}, net: <span style="color:${s.roulette.net>=0?'#4caf50':'#e74c3c'}">${s.roulette.net.toFixed(2)}</span><br>
-            <u>Poker:</u> bets: ${s.poker.totalBets}, won: ${s.poker.totalProfit}, net: <span style="color:${s.poker.net>=0?'#4caf50':'#e74c3c'}">${s.poker.net.toFixed(2)}</span><br>
-            `;
-        });
-    };
-
-    // ==== Chatbox JS ====
-    let chatboxOpen = true;
-    const chatbox = document.getElementById('chatbox');
-    const chatMessagesDiv = document.getElementById('chatMessages');
-    const chatForm = document.getElementById('chatForm');
-    const chatInput = document.getElementById('chatInput');
-    const chatboxToggle = document.getElementById('chatboxToggle');
-    let chatPolling = null;
-
-    function updateChatboxVisibility() {
-      if (authToken && user) {
-        chatbox.style.display = '';
-        chatForm.elements['chatInput'].disabled = false;
+      const data = await res.json();
+      if (data.success) {
+        placedBet = {amount:amt, cashedOut:false};
+        refreshBalance();
       } else {
-        chatbox.style.display = 'none';
-        chatForm.elements['chatInput'].disabled = true;
+        showCrashMsg(data.message || "Bet failed");
+      }
+    };
+    document.getElementById('crashCashoutBtn').onclick = async function() {
+      showCrashMsg('');
+      const res = await fetch(`${API}/crash/cashout`, {
+        method:'POST',
+        headers:{'Authorization':'Bearer '+authToken, 'Content-Type':'application/json'}
+      });
+      const data = await res.json();
+      if (data.success) {
+        placedBet = null;
+        showCrashMsg(`Cashed out at ${data.multiplier.toFixed(2)}x, won ${data.payout.toFixed(2)}!`);
+        refreshBalance();
+      } else {
+        showCrashMsg(data.message || "Cash out failed");
+      }
+    };
+    function updateCrashUI(round) {
+      setText('crashMultiplier', (round.multiplier||1).toFixed(2)+'x');
+      setText('crashStatus', {
+        waiting: "Waiting for next round...",
+        running: "Round running!",
+        crashed: `Crashed at ${(round.multiplier||1).toFixed(2)}x`,
+        loading: "Loading..."
+      }[round.status] || "");
+      const betBtn = document.getElementById('crashBetBtn');
+      const cashoutBtn = document.getElementById('crashCashoutBtn');
+      betBtn.disabled = round.status!=='running' || placedBet;
+      cashoutBtn.disabled = !placedBet || placedBet.cashedOut || round.status!=='running';
+    }
+    function showCrashMsg(msg) {
+      document.getElementById('crashMsg').textContent = msg||'';
+    }
+    async function getCrashHistory() {
+      if (!authToken) return;
+      const res = await fetch(`${API}/history/crash`, {
+        headers:{'Authorization':'Bearer '+authToken}
+      });
+      const data = await res.json();
+      const tbody = document.querySelector('#crashHistory tbody');
+      tbody.innerHTML = '';
+      if (data.success && Array.isArray(data.history)) {
+        const lastRounds = data.history.slice(-10).reverse();
+        lastRounds.forEach(r => {
+          const crashAt = r.crashAt ? r.crashAt.toFixed(2) : '';
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${r.roundId||''}</td><td>${crashAt}</td>`;
+          tbody.appendChild(tr);
+        });
       }
     }
 
-    chatboxToggle.onclick = function() {
-      chatboxOpen = !chatboxOpen;
-      if (chatboxOpen) {
-        chatMessagesDiv.style.display = 'block';
-        chatForm.style.display = 'flex';
-        chatboxToggle.textContent = '_';
-        chatbox.style.height = '';
+    // ---------- COINFLIP GAME ----------
+    function resetCoinflip() {
+      coinflipChoice = null;
+      document.getElementById('btnHeads').classList.remove('selected');
+      document.getElementById('btnTails').classList.remove('selected');
+      document.getElementById('coinflipBetAmount').value = "1.00";
+      setText('coinflipResult', "Waiting for flip...");
+      setText('coinflipMsg', "");
+    }
+    document.getElementById('btnHeads').onclick = function() {
+      coinflipChoice = 'heads';
+      this.classList.add('selected');
+      document.getElementById('btnTails').classList.remove('selected');
+    };
+    document.getElementById('btnTails').onclick = function() {
+      coinflipChoice = 'tails';
+      this.classList.add('selected');
+      document.getElementById('btnHeads').classList.remove('selected');
+    };
+    document.getElementById('coinflipBetBtn').onclick = async function() {
+      setText('coinflipMsg', "");
+      const amt = parseFloat(document.getElementById('coinflipBetAmount').value);
+      if (!amt || amt<=0) { setText('coinflipMsg',"Enter a bet > 0"); return; }
+      if (!coinflipChoice) { setText('coinflipMsg',"Pick heads or tails"); return; }
+      const res = await fetch(`${API}/coinflip/bet`, {
+        method:'POST',
+        headers:{'Authorization':'Bearer '+authToken, 'Content-Type':'application/json'},
+        body: JSON.stringify({amount: amt, choice: coinflipChoice})
+      });
+      const data = await res.json();
+      if (data.success) {
+        setText('coinflipResult', `Result: ${data.result}. ${data.win?"You win!":"You lose."} ${data.win?("Won "+data.payout):""}`);
+        refreshBalance();
       } else {
-        chatMessagesDiv.style.display = 'none';
-        chatForm.style.display = 'none';
-        chatboxToggle.textContent = '▲';
-        chatbox.style.height = '32px';
+        setText('coinflipMsg', data.message || "Bet failed");
       }
     };
 
-    function fetchChatMessages() {
-      fetch(`/api/chat`)
-        .then(res => res.json())
-        .then(data => {
-          if (!data.success) return;
-          chatMessagesDiv.innerHTML = data.messages.map(msg =>
-            `<div style="margin-bottom:6px;">
-              <span style="color:#ffc107;font-weight:bold;">${escapeHTML(msg.username)}</span>
-              <span style="color:#888;font-size:0.91em;">${formatChatTime(msg.timestamp)}</span><br>
-              <span>${escapeHTML(msg.message)}</span>
-            </div>`
-          ).join('');
-          chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
-        });
+    // ---------- ROULETTE GAME ----------
+    // Wheel colors order: red, black, red, black, green, red, black (7 slots for demo)
+    const rouletteColors = ['red','black','red','black','green','red','black'];
+    let rouletteSpinning = false, rouletteResultIndex = 0;
+    document.getElementById('btnRed').onclick = function() { rouletteBet('red'); };
+    document.getElementById('btnBlack').onclick = function() { rouletteBet('black'); };
+    document.getElementById('btnGreen').onclick = function() { rouletteBet('green'); };
+    function resetRoulette() {
+      document.getElementById('rouletteBetAmount').value = "1.00";
+      setText('rouletteMsg', "");
+      setText('rouletteResult', "Waiting for spin...");
+      document.getElementById('rouletteWheel').style.transform = 'rotate(0deg)';
+      rouletteSpinning = false;
     }
-    function formatChatTime(ts) {
-      const d = new Date(ts);
-      return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
-    }
-    function escapeHTML(s) {
-      return (s||"").replace(/[<>&'"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
+    function rouletteBet(color) {
+      if (rouletteSpinning) return;
+      setText('rouletteMsg', "");
+      let amt = parseFloat(document.getElementById('rouletteBetAmount').value);
+      if (!amt || amt<=0) { setText('rouletteMsg',"Enter a bet > 0"); return; }
+      // Spin wheel!
+      rouletteSpinning = true;
+      setText('rouletteResult', "Spinning...");
+      // Pick random slot for result
+      rouletteResultIndex = Math.floor(Math.random() * rouletteColors.length);
+      // Calculate degrees to rotate so that result slot is at top (pointer)
+      let degreesPerSlot = 360 / rouletteColors.length;
+      let targetDeg = (360*3) + (360 - rouletteResultIndex*degreesPerSlot); // 3 full spins + landing
+      document.getElementById('rouletteWheel').style.transition = 'transform 3s cubic-bezier(.32,1.56,.49,.98)';
+      document.getElementById('rouletteWheel').style.transform = `rotate(${targetDeg}deg)`;
+      setTimeout(() => {
+        // Reveal result
+        let resultColor = rouletteColors[rouletteResultIndex];
+        let win = (color === resultColor);
+        let payout = 0;
+        if (win) payout = color === "green" ? amt * 14 : amt * 2;
+        setText('rouletteResult', `Result: ${resultColor}. ${win?"You win!":"You lose."} ${payout>0?("Won "+payout):""}`);
+        rouletteSpinning = false;
+      }, 3200);
     }
 
-    function startChatPolling() {
-      if (chatPolling) clearInterval(chatPolling);
-      fetchChatMessages();
-      chatPolling = setInterval(fetchChatMessages, 3000);
+    // ---------- 3 CARD POKER ----------
+    const rankToUnicode = {
+      'A':'🂡', 'K':'🂮', 'Q':'🂭', 'J':'🂫', 'T':'10', '9':'9', '8':'8', '7':'7', '6':'6', '5':'5', '4':'4', '3':'3', '2':'2'
+    };
+    const suitToUnicode = {
+      'H':'♥', 'D':'♦', 'C':'♣', 'S':'♠'
+    };
+    function renderCard(card) {
+      const rank = card[0], suit = card[1];
+      let color = (suit === 'H' || suit === 'D') ? 'red' : 'black';
+      // Swap for <img src="YOUR_IMAGE_PATH"> for custom art
+      return `<div class="card ${color}">${rankToUnicode[rank] || rank}${suitToUnicode[suit] || ''}</div>`;
     }
-    startChatPolling();
-
-    chatForm.onsubmit = function(e) {
-      e.preventDefault();
-      if (!(authToken && user)) {
-        alert('Please log in to chat!');
+    function renderCardBack() {
+      return `<div class="card back">🂠</div>`;
+    }
+    let threecpGame = null;
+    function resetThreecp() {
+      threecpGame = null;
+      document.getElementById('threecpBetAmount').value = "1.00";
+      setText('threecpMsg', "");
+      setText('threecpResult', "Waiting for bet...");
+      setText('threecpPlayer', "");
+      setText('threecpDealer', "");
+      document.getElementById('threecpDecisionBtns').classList.add('hidden');
+    }
+    document.getElementById('threecpAnteBtn').onclick = function() {
+      setText('threecpMsg', "");
+      let amt = parseFloat(document.getElementById('threecpBetAmount').value);
+      if (!amt || amt<=0) { setText('threecpMsg',"Enter a bet > 0"); return; }
+      // Deal cards!
+      let deck = makeDeck();
+      let player = drawHand(deck), dealer = drawHand(deck);
+      threecpGame = { ante: amt, playBet: 0, player, dealer, state: 'decision' };
+      showThreeCPHands();
+      document.getElementById('threecpDecisionBtns').classList.remove('hidden');
+      setText('threecpResult', "Do you want to Play (up ante) or Fold?");
+    };
+    document.getElementById('threecpPlayBtn').onclick = function() {
+      if (!threecpGame || threecpGame.state !== 'decision') return;
+      threecpGame.playBet = threecpGame.ante;
+      threecpGame.state = 'done';
+      finishThreeCP(true);
+    };
+    document.getElementById('threecpFoldBtn').onclick = function() {
+      if (!threecpGame || threecpGame.state !== 'decision') return;
+      threecpGame.playBet = 0;
+      threecpGame.state = 'done';
+      finishThreeCP(false);
+    };
+    function showThreeCPHands() {
+      if (!threecpGame) return;
+      document.getElementById('threecpPlayer').innerHTML = "Your hand: <span class='card-row'>" +
+        threecpGame.player.map(renderCard).join('') + "</span>";
+      document.getElementById('threecpDealer').innerHTML = "Dealer: <span class='card-row'>" +
+        [renderCardBack(),renderCardBack(),renderCardBack()].join('') + "</span>";
+    }
+    function finishThreeCP(played) {
+      document.getElementById('threecpDealer').innerHTML = "Dealer: <span class='card-row'>" +
+        threecpGame.dealer.map(renderCard).join('') + "</span>";
+      document.getElementById('threecpDecisionBtns').classList.add('hidden');
+      if (!played) {
+        setText('threecpResult', "You folded. You lose your ante.");
         return;
       }
-      const msg = chatInput.value.trim();
-      if (!msg) return;
-      fetch(`/api/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(authToken ? {'Authorization': 'Bearer ' + authToken} : {}) },
-        body: JSON.stringify({ message: msg })
-      }).then(res => res.json()).then(data => {
-        if (data.success) {
-          chatInput.value = '';
-          fetchChatMessages();
-        } else {
-          alert(data.message || "Failed to send message.");
-        }
-      });
-    };
-
-    const _afterLoginOrig = afterLogin;
-    afterLogin = function() {
-      _afterLoginOrig();
-      updateChatboxVisibility();
+      // Hand comparison (simple: highest card wins)
+      let playerVal = Math.max(...threecpGame.player.map(c => "23456789TJQKA".indexOf(c[0])));
+      let dealerVal = Math.max(...threecpGame.dealer.map(c => "23456789TJQKA".indexOf(c[0])));
+      let win = playerVal > dealerVal;
+      let payout = win ? (threecpGame.ante + threecpGame.playBet) * 2 : 0;
+      setText('threecpResult', win ? `You win! Payout: ${payout}` : "You lose.");
     }
-    const _gotoLoginOrig = gotoLogin;
-    gotoLogin = function() {
-      _gotoLoginOrig();
-      updateChatboxVisibility();
+    function makeDeck() {
+      let suits = ['H','D','C','S'], ranks = ['2','3','4','5','6','7','8','9','T','J','Q','K','A'], d = [];
+      for (let s of suits) for (let r of ranks) d.push(r+s);
+      for (let i=d.length-1;i>0;i--) { let j=Math.floor(Math.random()*(i+1)); [d[i],d[j]]=[d[j],d[i]];}
+      return d;
     }
-
-    updateChatboxVisibility();
+    function drawHand(deck) { return [deck.pop(), deck.pop(), deck.pop()]; }
 
     // --- Initial view ---
     gotoLogin();
-
   </script>
+  <!-- ==== Chatbox UI ==== -->
+<div id="chatbox" style="display:none;position:fixed;bottom:0;right:0;width:320px;max-width:98vw;
+  background:#222;border-top-left-radius:12px;box-shadow:0 0 12px #000c;
+  border:1.5px solid #ffc107;z-index:1001;display:flex;flex-direction:column;
+  transition:height 0.2s;">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 14px;background:#191919;color:#ffc107;border-top-left-radius:10px;">
+    <span style="font-weight:bold;">💬 Chat</span>
+    <button id="chatboxToggle" style="background:none;border:none;color:#ffc107;font-size:1.2em;cursor:pointer;">_</button>
+  </div>
+  <div id="chatMessages" style="flex:1;overflow-y:auto;padding:8px 10px;height:180px;max-height:280px;"></div>
+  <form id="chatForm" style="display:flex;gap:6px;padding:7px;background:#232323;border-bottom-left-radius:10px;">
+    <input id="chatInput" type="text" maxlength="300" autocomplete="off" placeholder="Type a message..." style="flex:1;padding:7px;background:#191919;color:#fff;border:1px solid #ffc107;border-radius:6px;">
+    <button type="submit" style="background:#ffc107;color:#222;border:none;border-radius:6px;padding:6px 13px;font-weight:bold;">Send</button>
+  </form>
+</div>
+
+<script>
+// ==== Chatbox JS ====
+
+let chatboxOpen = true;
+const chatbox = document.getElementById('chatbox');
+const chatMessagesDiv = document.getElementById('chatMessages');
+const chatForm = document.getElementById('chatForm');
+const chatInput = document.getElementById('chatInput');
+const chatboxToggle = document.getElementById('chatboxToggle');
+let chatPolling = null;
+
+// Show/hide chatbox if logged in
+function updateChatboxVisibility() {
+  if (authToken && user) {
+    chatbox.style.display = '';
+    chatForm.elements['chatInput'].disabled = false;
+  } else {
+    chatbox.style.display = 'none';
+    chatForm.elements['chatInput'].disabled = true;
+  }
+}
+
+// Toggle minimize/maximize chatbox
+chatboxToggle.onclick = function() {
+  chatboxOpen = !chatboxOpen;
+  if (chatboxOpen) {
+    chatMessagesDiv.style.display = 'block';
+    chatForm.style.display = 'flex';
+    chatboxToggle.textContent = '_';
+    chatbox.style.height = '';
+  } else {
+    chatMessagesDiv.style.display = 'none';
+    chatForm.style.display = 'none';
+    chatboxToggle.textContent = '▲';
+    chatbox.style.height = '32px';
+  }
+};
+
+function fetchChatMessages() {
+  fetch('/api/chat')
+    .then(res => res.json())
+    .then(data => {
+      if (!data.success) return;
+      chatMessagesDiv.innerHTML = data.messages.map(msg =>
+        `<div style="margin-bottom:6px;">
+          <span style="color:#ffc107;font-weight:bold;">${escapeHTML(msg.username)}</span>
+          <span style="color:#888;font-size:0.91em;">${formatChatTime(msg.timestamp)}</span><br>
+          <span>${escapeHTML(msg.message)}</span>
+        </div>`
+      ).join('');
+      chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
+    });
+}
+function formatChatTime(ts) {
+  const d = new Date(ts);
+  return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+}
+function escapeHTML(s) {
+  return (s||"").replace(/[<>&'"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// Poll chat every 3 seconds
+function startChatPolling() {
+  if (chatPolling) clearInterval(chatPolling);
+  fetchChatMessages();
+  chatPolling = setInterval(fetchChatMessages, 3000);
+}
+startChatPolling();
+
+chatForm.onsubmit = function(e) {
+  e.preventDefault();
+  if (!(authToken && user)) {
+    alert('Please log in to chat!');
+    return;
+  }
+  const msg = chatInput.value.trim();
+  if (!msg) return;
+  fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(authToken ? {'Authorization': 'Bearer ' + authToken} : {}) },
+    body: JSON.stringify({ message: msg })
+  }).then(res => res.json()).then(data => {
+    if (data.success) {
+      chatInput.value = '';
+      fetchChatMessages();
+    } else {
+      alert(data.message || "Failed to send message.");
+    }
+  });
+};
+
+// Add to afterLogin/gotoLogin so chatbox shows/hides on login/logout
+const _afterLoginOrig = afterLogin;
+afterLogin = function() {
+  _afterLoginOrig();
+  updateChatboxVisibility();
+}
+const _gotoLoginOrig = gotoLogin;
+gotoLogin = function() {
+  _gotoLoginOrig();
+  updateChatboxVisibility();
+}
+
+// Initial state
+updateChatboxVisibility();
+</script>
+</body>
 </body>
 </html>
