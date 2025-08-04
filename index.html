@@ -32,7 +32,9 @@
     .roul-btn.green { background: #27ae60; color: #fff;}
     table { width:100%; border-collapse: collapse; }
     td, th { padding: 3px 6px; color: #ffc107; }
+    .captcha-wrap { margin: 12px auto 0 auto; display:flex; justify-content: center; }
   </style>
+  <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
 </head>
 <body>
   <!-- LOGIN/SIGNUP -->
@@ -49,6 +51,9 @@
       <input class="input" id="signupUser" placeholder="Username">
       <input class="input" id="signupEmail" type="email" placeholder="Email">
       <input class="input" id="signupPass" type="password" placeholder="Password">
+      <div class="captcha-wrap">
+        <div id="hcaptcha-container"></div>
+      </div>
       <button class="game-btn" id="signupBtn">Sign Up (Fun Mode)</button>
       <p style="text-align:center;">Already have an account? <a href="#" id="showLogin" style="color:#ffc107;">Login</a></p>
       <div class="err" id="signupErr"></div>
@@ -145,9 +150,24 @@
     // ======= CONFIG =======
     const API = "https://desolate-shore-72677-e0fe07c2f233.herokuapp.com/api";
     // ======================
-    // State
     let authToken = '', user = '', crashPoll = null, placedBet = null, crashRoundId = 0;
     let coinflipChoice = null;
+    let hcaptchaToken = "";
+
+    // hCaptcha callback
+    window.onHCaptchaSuccess = function(token) {
+      hcaptchaToken = token;
+    };
+    function renderHCaptcha() {
+      if (window.hcaptcha) {
+        hcaptcha.render('hcaptcha-container', {
+          sitekey: 'b1e64024-155e-43da-a5e6-9b56729c337e',
+          callback: onHCaptchaSuccess
+        });
+      } else {
+        setTimeout(renderHCaptcha, 500);
+      }
+    }
 
     // ---------- Auth/Login/Signup ----------
     function show(id) { document.getElementById(id).classList.remove('hidden'); }
@@ -170,6 +190,9 @@
       document.getElementById('signupUser').value = '';
       document.getElementById('signupPass').value = '';
       document.getElementById('signupEmail').value = '';
+      hcaptchaToken = "";
+      document.getElementById('hcaptcha-container').innerHTML = '';
+      renderHCaptcha();
     }
 
     document.getElementById('showSignup').onclick = e => { e.preventDefault(); gotoSignup(); };
@@ -199,10 +222,10 @@
       const password = document.getElementById('signupPass').value;
       document.getElementById('signupErr').textContent = '';
       if (!username || !email || !password) { document.getElementById('signupErr').textContent = 'Fill all fields.'; return; }
-      // Give all new signups 100 units
+      if (!hcaptchaToken) { document.getElementById('signupErr').textContent = "Please complete the captcha."; return; }
       const res = await fetch(`${API}/signup`, {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({username, email, password})
+        body: JSON.stringify({username, email, password, captchaToken: hcaptchaToken})
       });
       const data = await res.json();
       if (data.success) {
@@ -214,13 +237,15 @@
         const data2 = await res2.json();
         if (data2.success) {
           authToken = data2.token; user = data2.username;
-          // On backend, balance for new users should be 100
           afterLogin();
         } else {
           document.getElementById('signupErr').textContent = "Signup succeeded, but login failed.";
         }
       } else {
         document.getElementById('signupErr').textContent = data.message || "Signup failed";
+        // Reset captcha after fail
+        if (window.hcaptcha) hcaptcha.reset();
+        hcaptchaToken = "";
       }
     };
 
