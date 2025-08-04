@@ -6,7 +6,28 @@ const jwt = require('jsonwebtoken');
 const { MongoClient } = require('mongodb');
 
 const app = express();
-app.use(cors());
+
+// ---- CORS FIX FOR NETLIFY ----
+// Allow only your Netlify frontend and localhost for local dev
+const allowedOrigins = [
+  'https://reliable-cendol-97b021.netlify.app',
+  'http://localhost:8888', // Netlify dev server
+  'http://localhost:3000', // Localhost backend (optional)
+];
+
+app.use(cors({
+  origin: function(origin, callback){
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if(!origin) return callback(null, true);
+    if(allowedOrigins.indexOf(origin) === -1){
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true
+}));
+
 app.use(express.json());
 
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
@@ -31,6 +52,12 @@ MongoClient.connect(MONGODB_URI, { useUnifiedTopology: true }).then(client => {
     console.error("MongoDB connection error:", err);
 });
 
+// Debug: Log every request
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    next();
+});
+
 // Wait until dbReady for all requests
 app.use((req, res, next) => {
     if (!dbReady) return res.status(503).json({ success: false, message: "Database not connected." });
@@ -53,6 +80,7 @@ function authenticateToken(req, res, next) {
 app.post('/api/signup', async (req, res) => {
     try {
         const { username, email, password } = req.body;
+        console.log("Signup attempt:", username, email);
         if (!username || !email || !password) return res.json({ success: false, message: "Missing fields" });
         if (password.length < 6) return res.json({ success: false, message: "Password too short" });
         if (await usersCollection.findOne({ username })) return res.json({ success: false, message: "Username taken" });
@@ -61,6 +89,7 @@ app.post('/api/signup', async (req, res) => {
         await usersCollection.insertOne({ username, email, password: hash, balance: 1 });
         res.json({ success: true });
     } catch (e) {
+        console.error("Signup error:", e);
         res.json({ success: false, message: e.message });
     }
 });
@@ -68,12 +97,14 @@ app.post('/api/signup', async (req, res) => {
 app.post('/api/login', async (req, res) => {
     try {
         const { username, password } = req.body;
+        console.log("Login attempt:", username);
         const user = await usersCollection.findOne({ username });
         if (!user) return res.json({ success: false, message: "User not found" });
         if (!(await bcrypt.compare(password, user.password))) return res.json({ success: false, message: "Wrong password" });
         const token = jwt.sign({ username: user.username }, JWT_SECRET, { expiresIn: '7d' });
         res.json({ success: true, username: user.username, token });
     } catch (e) {
+        console.error("Login error:", e);
         res.json({ success: false, message: e.message });
     }
 });
