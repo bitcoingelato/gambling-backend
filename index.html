@@ -240,7 +240,6 @@
     </form>
   </div>
 
-  <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
   <script>
     // ======= CONFIG =======
     const API = "";
@@ -268,6 +267,7 @@
       } else setTimeout(renderHCaptchaSignup, 500);
     }
 
+    // ---------- Auth/Login/Signup ----------
     function show(id) { document.getElementById(id).classList.remove('hidden'); }
     function hide(id) { document.getElementById(id).classList.add('hidden'); }
     function setText(id, val) { document.getElementById(id).textContent = val; }
@@ -305,7 +305,7 @@
       document.getElementById('loginErr').textContent = '';
       if (!username || !password) { document.getElementById('loginErr').textContent = 'Enter both fields.'; return; }
       if (!hcaptchaLoginToken) { document.getElementById('loginErr').textContent = "Please complete the captcha."; return; }
-      const res = await fetch(`${API}/api/login`, {
+      const res = await fetch(`/api/login`, {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({username, password, captchaToken: hcaptchaLoginToken})
       });
@@ -327,13 +327,13 @@
       document.getElementById('signupErr').textContent = '';
       if (!username || !email || !password) { document.getElementById('signupErr').textContent = 'Fill all fields.'; return; }
       if (!hcaptchaSignupToken) { document.getElementById('signupErr').textContent = "Please complete the captcha."; return; }
-      const res = await fetch(`${API}/api/signup`, {
+      const res = await fetch(`/api/signup`, {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({username, email, password, captchaToken: hcaptchaSignupToken})
       });
       const data = await res.json();
       if (data.success) {
-        const res2 = await fetch(`${API}/api/login`, {
+        const res2 = await fetch(`/api/login`, {
           method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({username, password, captchaToken: hcaptchaSignupToken})
         });
@@ -402,7 +402,7 @@
 
     async function refreshBalance() {
       if (!authToken) return;
-      const res = await fetch(`${API}/api/balance`, {
+      const res = await fetch(`/api/balance`, {
         headers:{'Authorization':'Bearer '+authToken}
       });
       const data = await res.json();
@@ -423,7 +423,7 @@
       else if(newPassword !== confirmNewPassword) msg = "Passwords do not match.";
       else if(newPassword.length < 6) msg = "New password too short.";
       if(msg){ document.getElementById('settingsMsg').textContent = msg; return; }
-      const res = await fetch(`${API}/api/change-password`, {
+      const res = await fetch(`/api/change-password`, {
         method:'POST',
         headers:{'Authorization':'Bearer '+authToken, 'Content-Type':'application/json'},
         body: JSON.stringify({currentPassword, newPassword})
@@ -441,7 +441,7 @@
       if(!currentPassword || !newEmail) msg = "All fields required.";
       else if(!/^\S+@\S+\.\S+$/.test(newEmail)) msg = "Invalid email.";
       if(msg){ document.getElementById('settingsMsg').textContent = msg; return; }
-      const res = await fetch(`${API}/api/change-email`, {
+      const res = await fetch(`/api/change-email`, {
         method:'POST',
         headers:{'Authorization':'Bearer '+authToken, 'Content-Type':'application/json'},
         body: JSON.stringify({currentPassword, newEmail})
@@ -454,7 +454,7 @@
     // Crash history: only show last 30
     function getCrashHistory() {
       if (!authToken) return;
-      fetch(`${API}/api/history/crash`, {
+      fetch(`/api/history/crash`, {
         headers:{'Authorization':'Bearer '+authToken}
       }).then(res=>res.json()).then(data=>{
         const tbody = document.querySelector('#crashHistory tbody');
@@ -486,7 +486,7 @@
     document.getElementById('profileSearchBtn').onclick = function() {
       const q = document.getElementById('profileSearchInput').value.trim();
       if (!q) return;
-      fetch('/api/profiles/search?query=' + encodeURIComponent(q))
+      fetch(`/api/profiles/search?query=` + encodeURIComponent(q))
         .then(res => res.json())
         .then(data => {
           if (data.success) {
@@ -497,7 +497,7 @@
         });
     };
     window.loadProfile = function(username) {
-      fetch('/api/profile/' + encodeURIComponent(username))
+      fetch(`/api/profile/` + encodeURIComponent(username))
         .then(res => res.json())
         .then(data => {
           if (!data.success) {
@@ -553,7 +553,7 @@
     };
 
     function fetchChatMessages() {
-      fetch('/api/chat')
+      fetch(`/api/chat`)
         .then(res => res.json())
         .then(data => {
           if (!data.success) return;
@@ -590,9 +590,9 @@
       }
       const msg = chatInput.value.trim();
       if (!msg) return;
-      fetch('/api/chat', {
+      fetch(`/api/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+        headers: { 'Content-Type': 'application/json', ...(authToken ? {'Authorization': 'Bearer ' + authToken} : {}) },
         body: JSON.stringify({ message: msg })
       }).then(res => res.json()).then(data => {
         if (data.success) {
