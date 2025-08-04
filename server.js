@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs'); // switched from 'bcrypt' to 'bcryptjs'
 const jwt = require('jsonwebtoken');
 const { MongoClient } = require('mongodb');
 
