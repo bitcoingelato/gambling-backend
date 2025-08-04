@@ -16,6 +16,7 @@
   "description": "A backend for a gambling application with user authentication and balance tracking",
   "dependencies": {
     "bcrypt": "^5.1.1",
+    "bcryptjs": "^3.0.2",
     "btcpay": "^0.2.5",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
