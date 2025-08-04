@@ -5,6 +5,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { MongoClient } = require('mongodb');
 const fetch = require('node-fetch');
+const crypto = require('crypto');
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use(express.json());
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017";
 const DB_NAME = process.env.DB_NAME || "casino";
+const HCAPTCHA_SECRET = process.env.HCAPTCHA_SECRET || "b1e64024-155e-43da-a5e6-9b56729c337e";
 
 let db, usersCollection, crashCollection, coinflipCollection, rouletteCollection, pokerCollection;
 let dbReady = false;
@@ -79,17 +81,24 @@ app.post('/api/signup', async (req, res) => {
         if (await usersCollection.findOne({ email })) return res.json({ success: false, message: "Email taken" });
 
         // hCaptcha verification (server-side)
-        const captchaSecret = process.env.HCAPTCHA_SECRET || "b1e64024-155e-43da-a5e6-9b56729c337e";
         const captchaResponse = await fetch('https://hcaptcha.com/siteverify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `secret=${captchaSecret}&response=${captchaToken}`
+            body: `secret=${HCAPTCHA_SECRET}&response=${captchaToken}`
         }).then(r => r.json());
         if (!captchaResponse.success) return res.json({ success: false, message: "Invalid CAPTCHA" });
 
         // Give every new user a balance of 100 (fun mode!)
         const hash = await bcrypt.hash(password, 10);
-        await usersCollection.insertOne({ username, email, password: hash, balance: 100 });
+        await usersCollection.insertOne({
+            username,
+            email,
+            password: hash,
+            balance: 100,
+            emailVerified: false,
+            created: new Date()
+        });
+        // Optionally create email verification token here, but skip sending for now
         res.json({ success: true });
     } catch (e) {
         console.error("Signup error:", e);
@@ -99,7 +108,18 @@ app.post('/api/signup', async (req, res) => {
 
 app.post('/api/login', async (req, res) => {
     try {
-        const { username, password } = req.body;
+        const { username, password, captchaToken } = req.body;
+        if (!username || !password || !captchaToken) {
+            return res.json({ success: false, message: "Missing fields" });
+        }
+        // hCaptcha verification (server-side)
+        const captchaResponse = await fetch('https://hcaptcha.com/siteverify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `secret=${HCAPTCHA_SECRET}&response=${captchaToken}`
+        }).then(r => r.json());
+        if (!captchaResponse.success) return res.json({ success: false, message: "Invalid CAPTCHA" });
+
         const user = await usersCollection.findOne({ username });
         if (!user) return res.json({ success: false, message: "User not found" });
         if (!(await bcrypt.compare(password, user.password))) return res.json({ success: false, message: "Wrong password" });
@@ -117,10 +137,43 @@ app.get('/api/balance', authenticateToken, async (req, res) => {
     res.json({ success: true, balance: user.balance });
 });
 
+// ------ ACCOUNT SETTINGS ------
+app.post('/api/change-password', authenticateToken, async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        if (!currentPassword || !newPassword) return res.json({ success: false, message: "All fields required." });
+        if (newPassword.length < 6) return res.json({ success: false, message: "New password too short." });
+        const user = await usersCollection.findOne({ username: req.user.username });
+        if (!user) return res.json({ success: false, message: "User not found." });
+        if (!(await bcrypt.compare(currentPassword, user.password))) return res.json({ success: false, message: "Current password incorrect." });
+        const hash = await bcrypt.hash(newPassword, 10);
+        await usersCollection.updateOne({ username: req.user.username }, { $set: { password: hash } });
+        res.json({ success: true });
+    } catch (e) {
+        res.json({ success: false, message: e.message });
+    }
+});
+
+app.post('/api/change-email', authenticateToken, async (req, res) => {
+    try {
+        const { currentPassword, newEmail } = req.body;
+        if (!currentPassword || !newEmail) return res.json({ success: false, message: "All fields required." });
+        const user = await usersCollection.findOne({ username: req.user.username });
+        if (!user) return res.json({ success: false, message: "User not found." });
+        if (!(await bcrypt.compare(currentPassword, user.password))) return res.json({ success: false, message: "Current password incorrect." });
+        if (await usersCollection.findOne({ email: newEmail })) return res.json({ success: false, message: "Email already in use." });
+        await usersCollection.updateOne({ username: req.user.username }, { $set: { email: newEmail, emailVerified: false } });
+        // Optionally: trigger sending new verification email here
+        res.json({ success: true });
+    } catch (e) {
+        res.json({ success: false, message: e.message });
+    }
+});
+
 // ------ CRASH GAME -------
 let crashState = {
     roundId: 1,
-    status: 'waiting', // 'waiting' | 'running' | 'crashed'
+    status: 'waiting',
     multiplier: 1,
     bets: {},
     crashAt: 2
@@ -203,7 +256,7 @@ app.post('/api/coinflip/bet', authenticateToken, async (req, res) => {
 // ------ ROULETTE -------
 const rouletteColors = Array(15).fill("black").concat(Array(15).fill("red")).concat(["green"]);
 app.post('/api/roulette/bet', authenticateToken, async (req, res) => {
-    const { amount, color } = req.body; // color: 'red', 'black', 'green'
+    const { amount, color } = req.body;
     if (!amount || amount <= 0 || !["red", "black", "green"].includes(color)) return res.json({ success: false, message: "Invalid bet." });
     const user = await usersCollection.findOne({ username: req.user.username });
     if (!user) return res.json({ success: false, message: "User not found." });
