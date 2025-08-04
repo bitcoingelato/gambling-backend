@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body { font-family: Arial; background: #111; color: #fff; margin: 0; }
-    .container { max-width: 420px; margin: 32px auto 0 auto; background: #222; border-radius: 8px; box-shadow: 0 4px 16px #0008; padding: 24px; }
+    .container { max-width: 480px; margin: 32px auto 0 auto; background: #222; border-radius: 8px; box-shadow: 0 4px 16px #0008; padding: 24px; }
     h2 { text-align: center; }
     .game-btn { display: block; width: 90%; margin: 12px auto; padding: 16px; font-size: 1.2em; background: #ffc107; color: #222; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
     .game-btn:disabled { opacity: .5; cursor: not-allowed; }
@@ -16,18 +16,26 @@
     .input, input { width: 100%; padding: 10px; margin: 8px 0; border-radius: 5px; border: 1px solid #ffc107; background: #333; color: #fff; }
     #balanceBox { margin: 10px 0 18px; text-align: center; font-size: 1.1em; }
     #logoutBtn { background: #e74c3c; color: #fff; border: none; border-radius: 6px; padding: 8px 12px; cursor: pointer; float: right; margin-top: -44px; }
-    #crashArea { background: #191919; border-radius: 8px; padding: 18px; margin-top: 14px; }
-    #crashMultiplier { font-size: 2em; color: #ffc107; text-align: center; }
-    #crashStatus { text-align: center; margin-bottom: 8px; }
-    #crashBetRow { text-align: center; margin-bottom: 8px; }
-    #crashBetAmount { width: 60px; }
-    #crashHistory { margin-top: 18px; }
-    #crashHistory td, #crashHistory th { color: #ffc107; padding: 3px 8px; }
+    .section { background: #191919; border-radius: 8px; padding: 18px; margin-top: 14px; }
+    #crashMultiplier, #coinflipResult, #rouletteResult, #threecpResult { font-size: 1.2em; color: #ffc107; text-align: center; }
     .err { color: #e74c3c; font-size: .98em; text-align: center; }
+    .bet-row { text-align: center; margin-bottom: 8px; }
+    .bet-row input { width: 60px; }
+    .section h3 { margin-bottom: 6px; }
     #userBox { text-align: center; margin-bottom: 10px; }
+    .flex { display: flex; gap: 12px; justify-content: center; align-items: center; }
+    .coin-btn { width: 50px; height: 50px; border-radius: 50%; border: 2px solid #ffc107; background: #222; cursor: pointer; font-size: 1.2em; color: #fff; }
+    .coin-btn.selected { background: #ffc107; color: #222; }
+    .roul-btn { width: 80px; border-radius: 7px; border: none; padding: 7px; margin: 0 7px; font-weight: bold; font-size: 1em; }
+    .roul-btn.red { background: #c0392b; color: #fff;}
+    .roul-btn.black { background: #222; color: #fff;}
+    .roul-btn.green { background: #27ae60; color: #fff;}
+    table { width:100%; border-collapse: collapse; }
+    td, th { padding: 3px 6px; color: #ffc107; }
   </style>
 </head>
 <body>
+  <!-- LOGIN/SIGNUP -->
   <div class="container" id="loginPage">
     <h2>Bitcoin Gelato Casino</h2>
     <div id="loginBox">
@@ -47,6 +55,7 @@
     </div>
   </div>
 
+  <!-- MAIN MENU -->
   <div class="container hidden" id="mainPage">
     <div id="userBox">
       Welcome, <b id="userName"></b>!
@@ -61,14 +70,14 @@
     <button class="game-btn" id="btn3cp">3 Card Poker</button>
   </div>
 
-  <!-- Crash Game Section -->
+  <!-- CRASH -->
   <div class="container hidden" id="crashSection">
     <button onclick="backToMenu()" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
     <h2>Crash (Fun Mode)</h2>
-    <div id="crashArea">
+    <div class="section">
       <div id="crashStatus"></div>
       <div id="crashMultiplier">1.00x</div>
-      <div id="crashBetRow">
+      <div class="bet-row">
         <input id="crashBetAmount" type="number" step="0.01" min="0.01" value="1.00"> 
         <button id="crashBetBtn">Place Bet</button>
         <button id="crashCashoutBtn" disabled>Cash Out</button>
@@ -76,20 +85,59 @@
       <div id="crashMsg" class="err"></div>
     </div>
     <div id="crashHistoryDiv">
-      <h4 style="margin: 14px 0 6px;">Recent Crash Rounds</h4>
-      <table id="crashHistory" border="0" style="width:100%;">
+      <h3>Recent Crash Rounds</h3>
+      <table id="crashHistory">
         <thead><tr><th>Round</th><th>Crash</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
   </div>
 
-  <!-- Modal for Coming Soon -->
-  <div class="modal" id="modalComingSoon">
-    <div class="modal-content">
-      <h3>Coming Soon 🚧</h3>
-      <p>This game will be available soon!</p>
-      <button onclick="closeComingSoon()" class="game-btn" style="background:#222;color:#ffc107;">OK</button>
+  <!-- COINFLIP -->
+  <div class="container hidden" id="coinflipSection">
+    <button onclick="backToMenu()" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
+    <h2>Coinflip</h2>
+    <div class="section">
+      <div class="bet-row flex">
+        <input id="coinflipBetAmount" type="number" step="0.01" min="0.01" value="1.00">
+        <button class="coin-btn" id="btnHeads">H</button>
+        <button class="coin-btn" id="btnTails">T</button>
+        <button id="coinflipBetBtn">Flip</button>
+      </div>
+      <div id="coinflipMsg" class="err"></div>
+      <div id="coinflipResult">Waiting for flip...</div>
+    </div>
+  </div>
+
+  <!-- ROULETTE -->
+  <div class="container hidden" id="rouletteSection">
+    <button onclick="backToMenu()" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
+    <h2>Roulette</h2>
+    <div class="section">
+      <div class="bet-row flex">
+        <input id="rouletteBetAmount" type="number" step="0.01" min="0.01" value="1.00">
+        <button class="roul-btn red" id="btnRed">Red</button>
+        <button class="roul-btn black" id="btnBlack">Black</button>
+        <button class="roul-btn green" id="btnGreen">Green</button>
+      </div>
+      <div id="rouletteMsg" class="err"></div>
+      <div id="rouletteResult">Waiting for spin...</div>
+    </div>
+  </div>
+
+  <!-- 3 CARD POKER -->
+  <div class="container hidden" id="threecpSection">
+    <button onclick="backToMenu()" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
+    <h2>3 Card Poker</h2>
+    <div class="section">
+      <div class="bet-row">
+        <input id="threecpBetAmount" type="number" step="0.01" min="0.01" value="1.00">
+        <button id="threecpBetBtn">Deal</button>
+      </div>
+      <div id="threecpMsg" class="err"></div>
+      <div id="threecpPlayer"></div>
+      <div id="threecpDealer"></div>
+      <div id="threecpResult">Waiting for game...</div>
     </div>
   </div>
 
@@ -97,9 +145,9 @@
     // ======= CONFIG =======
     const API = "https://desolate-shore-72677-e0fe07c2f233.herokuapp.com/api";
     // ======================
-
     // State
     let authToken = '', user = '', crashPoll = null, placedBet = null, crashRoundId = 0;
+    let coinflipChoice = null;
 
     // ---------- Auth/Login/Signup ----------
     function show(id) { document.getElementById(id).classList.remove('hidden'); }
@@ -107,7 +155,7 @@
     function setText(id, val) { document.getElementById(id).textContent = val; }
 
     function gotoLogin() {
-      hide('mainPage'); hide('crashSection');
+      hide('mainPage'); hide('crashSection'); hide('coinflipSection'); hide('rouletteSection'); hide('threecpSection');
       show('loginPage');
       show('loginBox'); hide('signupBox');
       document.getElementById('loginErr').textContent = '';
@@ -115,7 +163,7 @@
       document.getElementById('loginPass').value = '';
     }
     function gotoSignup() {
-      hide('mainPage'); hide('crashSection');
+      hide('mainPage'); hide('crashSection'); hide('coinflipSection'); hide('rouletteSection'); hide('threecpSection');
       show('loginPage');
       hide('loginBox'); show('signupBox');
       document.getElementById('signupErr').textContent = '';
@@ -151,6 +199,7 @@
       const password = document.getElementById('signupPass').value;
       document.getElementById('signupErr').textContent = '';
       if (!username || !email || !password) { document.getElementById('signupErr').textContent = 'Fill all fields.'; return; }
+      // Give all new signups 100 units
       const res = await fetch(`${API}/signup`, {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({username, email, password})
@@ -165,6 +214,7 @@
         const data2 = await res2.json();
         if (data2.success) {
           authToken = data2.token; user = data2.username;
+          // On backend, balance for new users should be 100
           afterLogin();
         } else {
           document.getElementById('signupErr').textContent = "Signup succeeded, but login failed.";
@@ -192,19 +242,26 @@
       show('crashSection');
       startCrashPoll();
     };
+    document.getElementById('btnCoinflip').onclick = function() {
+      hide('mainPage');
+      show('coinflipSection');
+      resetCoinflip();
+    };
+    document.getElementById('btnRoulette').onclick = function() {
+      hide('mainPage');
+      show('rouletteSection');
+      resetRoulette();
+    };
+    document.getElementById('btn3cp').onclick = function() {
+      hide('mainPage');
+      show('threecpSection');
+      resetThreecp();
+    };
     function backToMenu() {
-      hide('crashSection');
+      hide('crashSection'); hide('coinflipSection'); hide('rouletteSection'); hide('threecpSection');
       show('mainPage');
       stopCrashPoll();
       refreshBalance();
-    }
-    document.getElementById('btnCoinflip').onclick =
-    document.getElementById('btnRoulette').onclick =
-    document.getElementById('btn3cp').onclick = function() {
-      document.getElementById('modalComingSoon').classList.add('show');
-    };
-    function closeComingSoon() {
-      document.getElementById('modalComingSoon').classList.remove('show');
     }
 
     // ---------- Fun Mode Balance ----------
@@ -235,8 +292,6 @@
       if (crashPoll) clearInterval(crashPoll);
       crashPoll = null;
     }
-
-    // Main polling function
     async function fetchCrashState() {
       if (!authToken) return;
       const res = await fetch(`${API}/crash/state`, {headers:{'Authorization':'Bearer '+authToken}});
@@ -246,8 +301,6 @@
         updateCrashUI(data.round);
       }
     }
-
-    // Place Bet
     document.getElementById('crashBetBtn').onclick = async function() {
       const amt = parseFloat(document.getElementById('crashBetAmount').value);
       if (!amt || amt<=0) { showCrashMsg("Enter a bet > 0"); return; }
@@ -265,7 +318,6 @@
         showCrashMsg(data.message || "Bet failed");
       }
     };
-    // Cash Out
     document.getElementById('crashCashoutBtn').onclick = async function() {
       showCrashMsg('');
       const res = await fetch(`${API}/crash/cashout`, {
@@ -281,8 +333,6 @@
         showCrashMsg(data.message || "Cash out failed");
       }
     };
-
-    // UI Updater
     function updateCrashUI(round) {
       setText('crashMultiplier', (round.multiplier||1).toFixed(2)+'x');
       setText('crashStatus', {
@@ -291,7 +341,6 @@
         crashed: `Crashed at ${(round.multiplier||1).toFixed(2)}x`,
         loading: "Loading..."
       }[round.status] || "");
-      // Enable/disable bet/cashout
       const betBtn = document.getElementById('crashBetBtn');
       const cashoutBtn = document.getElementById('crashCashoutBtn');
       betBtn.disabled = round.status!=='running' || placedBet;
@@ -300,8 +349,6 @@
     function showCrashMsg(msg) {
       document.getElementById('crashMsg').textContent = msg||'';
     }
-
-    // Crash History
     async function getCrashHistory() {
       if (!authToken) return;
       const res = await fetch(`${API}/history/crash`, {
@@ -320,6 +367,102 @@
         });
       }
     }
+
+    // ---------- COINFLIP GAME ----------
+    function resetCoinflip() {
+      coinflipChoice = null;
+      document.getElementById('btnHeads').classList.remove('selected');
+      document.getElementById('btnTails').classList.remove('selected');
+      document.getElementById('coinflipBetAmount').value = "1.00";
+      setText('coinflipResult', "Waiting for flip...");
+      setText('coinflipMsg', "");
+    }
+    document.getElementById('btnHeads').onclick = function() {
+      coinflipChoice = 'heads';
+      this.classList.add('selected');
+      document.getElementById('btnTails').classList.remove('selected');
+    };
+    document.getElementById('btnTails').onclick = function() {
+      coinflipChoice = 'tails';
+      this.classList.add('selected');
+      document.getElementById('btnHeads').classList.remove('selected');
+    };
+    document.getElementById('coinflipBetBtn').onclick = async function() {
+      setText('coinflipMsg', "");
+      const amt = parseFloat(document.getElementById('coinflipBetAmount').value);
+      if (!amt || amt<=0) { setText('coinflipMsg',"Enter a bet > 0"); return; }
+      if (!coinflipChoice) { setText('coinflipMsg',"Pick heads or tails"); return; }
+      const res = await fetch(`${API}/coinflip/bet`, {
+        method:'POST',
+        headers:{'Authorization':'Bearer '+authToken, 'Content-Type':'application/json'},
+        body: JSON.stringify({amount: amt, choice: coinflipChoice})
+      });
+      const data = await res.json();
+      if (data.success) {
+        setText('coinflipResult', `Result: ${data.result}. ${data.win?"You win!":"You lose."} ${data.win?("Won "+data.payout):""}`);
+        refreshBalance();
+      } else {
+        setText('coinflipMsg', data.message || "Bet failed");
+      }
+    };
+
+    // ---------- ROULETTE GAME ----------
+    function resetRoulette() {
+      document.getElementById('rouletteBetAmount').value = "1.00";
+      setText('rouletteMsg', "");
+      setText('rouletteResult', "Waiting for spin...");
+    }
+    document.getElementById('btnRed').onclick = function() { rouletteBet('red'); };
+    document.getElementById('btnBlack').onclick = function() { rouletteBet('black'); };
+    document.getElementById('btnGreen').onclick = function() { rouletteBet('green'); };
+    async function rouletteBet(color) {
+      setText('rouletteMsg', "");
+      const amt = parseFloat(document.getElementById('rouletteBetAmount').value);
+      if (!amt || amt<=0) { setText('rouletteMsg',"Enter a bet > 0"); return; }
+      const res = await fetch(`${API}/roulette/bet`, {
+        method:'POST',
+        headers:{'Authorization':'Bearer '+authToken, 'Content-Type':'application/json'},
+        body: JSON.stringify({amount: amt, color})
+      });
+      const data = await res.json();
+      if (data.success) {
+        setText('rouletteResult', `Result: ${data.result}. ${data.payout>0?"You win!":"You lose."} ${data.payout>0?("Won "+data.payout):""}`);
+        refreshBalance();
+      } else {
+        setText('rouletteMsg', data.message || "Bet failed");
+      }
+    }
+
+    // ---------- 3 CARD POKER ----------
+    function resetThreecp() {
+      document.getElementById('threecpBetAmount').value = "1.00";
+      setText('threecpMsg', "");
+      setText('threecpResult', "Waiting for game...");
+      setText('threecpPlayer', "");
+      setText('threecpDealer', "");
+    }
+    document.getElementById('threecpBetBtn').onclick = async function() {
+      setText('threecpMsg', "");
+      setText('threecpResult', "Waiting for result...");
+      setText('threecpPlayer', "");
+      setText('threecpDealer', "");
+      const amt = parseFloat(document.getElementById('threecpBetAmount').value);
+      if (!amt || amt<=0) { setText('threecpMsg',"Enter a bet > 0"); return; }
+      const res = await fetch(`${API}/3cp/bet`, {
+        method:'POST',
+        headers:{'Authorization':'Bearer '+authToken, 'Content-Type':'application/json'},
+        body: JSON.stringify({amount: amt})
+      });
+      const data = await res.json();
+      if (data.success) {
+        setText('threecpPlayer', "Your hand: "+data.player.join(", "));
+        setText('threecpDealer', "Dealer: "+data.dealer.join(", "));
+        setText('threecpResult', data.win?("You win! Won "+data.payout):"You lose.");
+        refreshBalance();
+      } else {
+        setText('threecpMsg', data.message || "Bet failed");
+      }
+    };
 
     // Start with login page
     gotoLogin();
