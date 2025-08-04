@@ -681,5 +681,128 @@
     // --- Initial view ---
     gotoLogin();
   </script>
+  <!-- ==== Chatbox UI ==== -->
+<div id="chatbox" style="display:none;position:fixed;bottom:0;right:0;width:320px;max-width:98vw;
+  background:#222;border-top-left-radius:12px;box-shadow:0 0 12px #000c;
+  border:1.5px solid #ffc107;z-index:1001;display:flex;flex-direction:column;
+  transition:height 0.2s;">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 14px;background:#191919;color:#ffc107;border-top-left-radius:10px;">
+    <span style="font-weight:bold;">💬 Chat</span>
+    <button id="chatboxToggle" style="background:none;border:none;color:#ffc107;font-size:1.2em;cursor:pointer;">_</button>
+  </div>
+  <div id="chatMessages" style="flex:1;overflow-y:auto;padding:8px 10px;height:180px;max-height:280px;"></div>
+  <form id="chatForm" style="display:flex;gap:6px;padding:7px;background:#232323;border-bottom-left-radius:10px;">
+    <input id="chatInput" type="text" maxlength="300" autocomplete="off" placeholder="Type a message..." style="flex:1;padding:7px;background:#191919;color:#fff;border:1px solid #ffc107;border-radius:6px;">
+    <button type="submit" style="background:#ffc107;color:#222;border:none;border-radius:6px;padding:6px 13px;font-weight:bold;">Send</button>
+  </form>
+</div>
+
+<script>
+// ==== Chatbox JS ====
+
+let chatboxOpen = true;
+const chatbox = document.getElementById('chatbox');
+const chatMessagesDiv = document.getElementById('chatMessages');
+const chatForm = document.getElementById('chatForm');
+const chatInput = document.getElementById('chatInput');
+const chatboxToggle = document.getElementById('chatboxToggle');
+let chatPolling = null;
+
+// Show/hide chatbox if logged in
+function updateChatboxVisibility() {
+  if (authToken && user) {
+    chatbox.style.display = '';
+    chatForm.elements['chatInput'].disabled = false;
+  } else {
+    chatbox.style.display = 'none';
+    chatForm.elements['chatInput'].disabled = true;
+  }
+}
+
+// Toggle minimize/maximize chatbox
+chatboxToggle.onclick = function() {
+  chatboxOpen = !chatboxOpen;
+  if (chatboxOpen) {
+    chatMessagesDiv.style.display = 'block';
+    chatForm.style.display = 'flex';
+    chatboxToggle.textContent = '_';
+    chatbox.style.height = '';
+  } else {
+    chatMessagesDiv.style.display = 'none';
+    chatForm.style.display = 'none';
+    chatboxToggle.textContent = '▲';
+    chatbox.style.height = '32px';
+  }
+};
+
+function fetchChatMessages() {
+  fetch('/api/chat')
+    .then(res => res.json())
+    .then(data => {
+      if (!data.success) return;
+      chatMessagesDiv.innerHTML = data.messages.map(msg =>
+        `<div style="margin-bottom:6px;">
+          <span style="color:#ffc107;font-weight:bold;">${escapeHTML(msg.username)}</span>
+          <span style="color:#888;font-size:0.91em;">${formatChatTime(msg.timestamp)}</span><br>
+          <span>${escapeHTML(msg.message)}</span>
+        </div>`
+      ).join('');
+      chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
+    });
+}
+function formatChatTime(ts) {
+  const d = new Date(ts);
+  return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+}
+function escapeHTML(s) {
+  return (s||"").replace(/[<>&'"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// Poll chat every 3 seconds
+function startChatPolling() {
+  if (chatPolling) clearInterval(chatPolling);
+  fetchChatMessages();
+  chatPolling = setInterval(fetchChatMessages, 3000);
+}
+startChatPolling();
+
+chatForm.onsubmit = function(e) {
+  e.preventDefault();
+  if (!(authToken && user)) {
+    alert('Please log in to chat!');
+    return;
+  }
+  const msg = chatInput.value.trim();
+  if (!msg) return;
+  fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(authToken ? {'Authorization': 'Bearer ' + authToken} : {}) },
+    body: JSON.stringify({ message: msg })
+  }).then(res => res.json()).then(data => {
+    if (data.success) {
+      chatInput.value = '';
+      fetchChatMessages();
+    } else {
+      alert(data.message || "Failed to send message.");
+    }
+  });
+};
+
+// Add to afterLogin/gotoLogin so chatbox shows/hides on login/logout
+const _afterLoginOrig = afterLogin;
+afterLogin = function() {
+  _afterLoginOrig();
+  updateChatboxVisibility();
+}
+const _gotoLoginOrig = gotoLogin;
+gotoLogin = function() {
+  _gotoLoginOrig();
+  updateChatboxVisibility();
+}
+
+// Initial state
+updateChatboxVisibility();
+</script>
+</body>
 </body>
 </html>
