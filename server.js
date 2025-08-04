@@ -1,23 +1,21 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const bcrypt = require('bcryptjs'); // switched from 'bcrypt' to 'bcryptjs'
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { MongoClient } = require('mongodb');
+const fetch = require('node-fetch');
 
 const app = express();
 
-// ---- CORS FIX FOR NETLIFY ----
-// Allow only your Netlify frontend and localhost for local dev
+// ---- CORS ----
 const allowedOrigins = [
   'https://reliable-cendol-97b021.netlify.app',
-  'http://localhost:8888', // Netlify dev server
-  'http://localhost:3000', // Localhost backend (optional)
+  'http://localhost:8888',
+  'http://localhost:3000',
 ];
-
 app.use(cors({
   origin: function(origin, callback){
-    // Allow requests with no origin (mobile apps, curl, etc.)
     if(!origin) return callback(null, true);
     if(allowedOrigins.indexOf(origin) === -1){
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
@@ -27,7 +25,6 @@ app.use(cors({
   },
   credentials: true
 }));
-
 app.use(express.json());
 
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
@@ -35,8 +32,6 @@ const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017";
 const DB_NAME = process.env.DB_NAME || "casino";
 
 let db, usersCollection, crashCollection, coinflipCollection, rouletteCollection, pokerCollection;
-
-// Reliable connection before allowing requests
 let dbReady = false;
 MongoClient.connect(MONGODB_URI, { useUnifiedTopology: true }).then(client => {
     db = client.db(DB_NAME);
@@ -52,19 +47,15 @@ MongoClient.connect(MONGODB_URI, { useUnifiedTopology: true }).then(client => {
     console.error("MongoDB connection error:", err);
 });
 
-// Debug: Log every request
 app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
     next();
 });
-
-// Wait until dbReady for all requests
 app.use((req, res, next) => {
     if (!dbReady) return res.status(503).json({ success: false, message: "Database not connected." });
     next();
 });
 
-// JWT middleware
 function authenticateToken(req, res, next) {
     const auth = req.headers['authorization'];
     if (!auth) return res.status(401).json({ success: false, message: "No token" });
@@ -79,14 +70,26 @@ function authenticateToken(req, res, next) {
 // ------ AUTH ------
 app.post('/api/signup', async (req, res) => {
     try {
-        const { username, email, password } = req.body;
-        console.log("Signup attempt:", username, email);
-        if (!username || !email || !password) return res.json({ success: false, message: "Missing fields" });
+        const { username, email, password, captchaToken } = req.body;
+        if (!username || !email || !password || !captchaToken) {
+            return res.json({ success: false, message: "Missing fields" });
+        }
         if (password.length < 6) return res.json({ success: false, message: "Password too short" });
         if (await usersCollection.findOne({ username })) return res.json({ success: false, message: "Username taken" });
         if (await usersCollection.findOne({ email })) return res.json({ success: false, message: "Email taken" });
+
+        // hCaptcha verification (server-side)
+        const captchaSecret = process.env.HCAPTCHA_SECRET || "b1e64024-155e-43da-a5e6-9b56729c337e";
+        const captchaResponse = await fetch('https://hcaptcha.com/siteverify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `secret=${captchaSecret}&response=${captchaToken}`
+        }).then(r => r.json());
+        if (!captchaResponse.success) return res.json({ success: false, message: "Invalid CAPTCHA" });
+
+        // Give every new user a balance of 100 (fun mode!)
         const hash = await bcrypt.hash(password, 10);
-        await usersCollection.insertOne({ username, email, password: hash, balance: 1 });
+        await usersCollection.insertOne({ username, email, password: hash, balance: 100 });
         res.json({ success: true });
     } catch (e) {
         console.error("Signup error:", e);
@@ -97,7 +100,6 @@ app.post('/api/signup', async (req, res) => {
 app.post('/api/login', async (req, res) => {
     try {
         const { username, password } = req.body;
-        console.log("Login attempt:", username);
         const user = await usersCollection.findOne({ username });
         if (!user) return res.json({ success: false, message: "User not found" });
         if (!(await bcrypt.compare(password, user.password))) return res.json({ success: false, message: "Wrong password" });
@@ -151,7 +153,7 @@ function startCrashRound() {
 }
 setTimeout(startCrashRound, 2000);
 
-app.get('/api/crash/state', (req, res) => {
+app.get('/api/crash/state', authenticateToken, (req, res) => {
     res.json({ success: true, round: { ...crashState, bets: undefined } });
 });
 app.post('/api/crash/bet', authenticateToken, async (req, res) => {
@@ -176,7 +178,6 @@ app.post('/api/crash/cashout', authenticateToken, async (req, res) => {
     bet.cashedAt = crashState.multiplier;
     const payout = parseFloat((bet.amount * crashState.multiplier).toFixed(8));
     await usersCollection.updateOne({ username: user.username }, { $inc: { balance: payout } });
-    // Save single bet to bet history
     await crashCollection.updateOne(
         { roundId: crashState.roundId },
         { $push: { bets: { username: user.username, amount: bet.amount, cashedAt: crashState.multiplier, payout, cashedOut: true, time: new Date() } } }
