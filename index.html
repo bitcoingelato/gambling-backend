@@ -33,6 +33,10 @@
     table { width:100%; border-collapse: collapse; }
     td, th { padding: 3px 6px; color: #ffc107; }
     .captcha-wrap { margin: 12px auto 0 auto; display:flex; justify-content: center; }
+    #settingsSection input { width:90%; }
+    #settingsSection label { display:block; margin-top:10px; }
+    #settingsSection .settings-btn { width: 100%; margin: 6px 0 12px 0;}
+    #settingsMsg { margin-bottom: 10px; }
   </style>
   <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
 </head>
@@ -43,6 +47,9 @@
     <div id="loginBox">
       <input class="input" id="loginUser" placeholder="Username">
       <input class="input" id="loginPass" type="password" placeholder="Password">
+      <div class="captcha-wrap">
+        <div id="hcaptcha-login"></div>
+      </div>
       <button class="game-btn" id="loginBtn">Login</button>
       <p style="text-align:center;">No account? <a href="#" id="showSignup" style="color:#ffc107;">Sign Up</a></p>
       <div class="err" id="loginErr"></div>
@@ -52,7 +59,7 @@
       <input class="input" id="signupEmail" type="email" placeholder="Email">
       <input class="input" id="signupPass" type="password" placeholder="Password">
       <div class="captcha-wrap">
-        <div id="hcaptcha-container"></div>
+        <div id="hcaptcha-signup"></div>
       </div>
       <button class="game-btn" id="signupBtn">Sign Up (Fun Mode)</button>
       <p style="text-align:center;">Already have an account? <a href="#" id="showLogin" style="color:#ffc107;">Login</a></p>
@@ -73,6 +80,7 @@
     <button class="game-btn" id="btnCoinflip">Coinflip</button>
     <button class="game-btn" id="btnRoulette">Roulette</button>
     <button class="game-btn" id="btn3cp">3 Card Poker</button>
+    <button class="game-btn" id="btnSettings" style="background: #444; color: #ffc107;">Account Settings</button>
   </div>
 
   <!-- CRASH -->
@@ -146,27 +154,52 @@
     </div>
   </div>
 
+  <!-- ACCOUNT SETTINGS -->
+  <div class="container hidden" id="settingsSection">
+    <button onclick="backToMenu()" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
+    <h2>Account Settings</h2>
+    <div id="settingsMsg" class="err"></div>
+    <form id="formChangePassword" autocomplete="off">
+      <label>Change Password</label>
+      <input id="currentPassword" type="password" placeholder="Current Password" required>
+      <input id="newPassword" type="password" placeholder="New Password" required>
+      <input id="confirmNewPassword" type="password" placeholder="Confirm New Password" required>
+      <button type="submit" class="game-btn settings-btn">Change Password</button>
+    </form>
+    <form id="formChangeEmail" autocomplete="off">
+      <label>Change Email</label>
+      <input id="currentPassword2" type="password" placeholder="Current Password" required>
+      <input id="newEmail" type="email" placeholder="New Email" required>
+      <button type="submit" class="game-btn settings-btn">Change Email</button>
+    </form>
+  </div>
+
   <script>
     // ======= CONFIG =======
     const API = "https://desolate-shore-72677-e0fe07c2f233.herokuapp.com/api";
     // ======================
     let authToken = '', user = '', crashPoll = null, placedBet = null, crashRoundId = 0;
     let coinflipChoice = null;
-    let hcaptchaToken = "";
+    let hcaptchaLoginToken = "", hcaptchaSignupToken = "";
 
     // hCaptcha callback
-    window.onHCaptchaSuccess = function(token) {
-      hcaptchaToken = token;
-    };
-    function renderHCaptcha() {
+    window.onLoginHCaptcha = function(token) { hcaptchaLoginToken = token; };
+    window.onSignupHCaptcha = function(token) { hcaptchaSignupToken = token; };
+    function renderHCaptchaLogin() {
       if (window.hcaptcha) {
-        hcaptcha.render('hcaptcha-container', {
+        hcaptcha.render('hcaptcha-login', {
           sitekey: 'b1e64024-155e-43da-a5e6-9b56729c337e',
-          callback: onHCaptchaSuccess
+          callback: onLoginHCaptcha
         });
-      } else {
-        setTimeout(renderHCaptcha, 500);
-      }
+      } else setTimeout(renderHCaptchaLogin, 500);
+    }
+    function renderHCaptchaSignup() {
+      if (window.hcaptcha) {
+        hcaptcha.render('hcaptcha-signup', {
+          sitekey: 'b1e64024-155e-43da-a5e6-9b56729c337e',
+          callback: onSignupHCaptcha
+        });
+      } else setTimeout(renderHCaptchaSignup, 500);
     }
 
     // ---------- Auth/Login/Signup ----------
@@ -175,24 +208,27 @@
     function setText(id, val) { document.getElementById(id).textContent = val; }
 
     function gotoLogin() {
-      hide('mainPage'); hide('crashSection'); hide('coinflipSection'); hide('rouletteSection'); hide('threecpSection');
+      hide('mainPage'); hide('crashSection'); hide('coinflipSection'); hide('rouletteSection'); hide('threecpSection'); hide('settingsSection');
       show('loginPage');
       show('loginBox'); hide('signupBox');
       document.getElementById('loginErr').textContent = '';
       document.getElementById('loginUser').value = '';
       document.getElementById('loginPass').value = '';
+      hcaptchaLoginToken = '';
+      document.getElementById('hcaptcha-login').innerHTML = '';
+      renderHCaptchaLogin();
     }
     function gotoSignup() {
-      hide('mainPage'); hide('crashSection'); hide('coinflipSection'); hide('rouletteSection'); hide('threecpSection');
+      hide('mainPage'); hide('crashSection'); hide('coinflipSection'); hide('rouletteSection'); hide('threecpSection'); hide('settingsSection');
       show('loginPage');
       hide('loginBox'); show('signupBox');
       document.getElementById('signupErr').textContent = '';
       document.getElementById('signupUser').value = '';
       document.getElementById('signupPass').value = '';
       document.getElementById('signupEmail').value = '';
-      hcaptchaToken = "";
-      document.getElementById('hcaptcha-container').innerHTML = '';
-      renderHCaptcha();
+      hcaptchaSignupToken = '';
+      document.getElementById('hcaptcha-signup').innerHTML = '';
+      renderHCaptchaSignup();
     }
 
     document.getElementById('showSignup').onclick = e => { e.preventDefault(); gotoSignup(); };
@@ -203,9 +239,10 @@
       const password = document.getElementById('loginPass').value;
       document.getElementById('loginErr').textContent = '';
       if (!username || !password) { document.getElementById('loginErr').textContent = 'Enter both fields.'; return; }
+      if (!hcaptchaLoginToken) { document.getElementById('loginErr').textContent = "Please complete the captcha."; return; }
       const res = await fetch(`${API}/login`, {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({username, password})
+        body: JSON.stringify({username, password, captchaToken: hcaptchaLoginToken})
       });
       const data = await res.json();
       if (data.success) {
@@ -213,6 +250,8 @@
         afterLogin();
       } else {
         document.getElementById('loginErr').textContent = data.message || "Login failed";
+        if (window.hcaptcha) hcaptcha.reset(document.getElementById('hcaptcha-login').firstChild);
+        hcaptchaLoginToken = "";
       }
     };
 
@@ -222,17 +261,17 @@
       const password = document.getElementById('signupPass').value;
       document.getElementById('signupErr').textContent = '';
       if (!username || !email || !password) { document.getElementById('signupErr').textContent = 'Fill all fields.'; return; }
-      if (!hcaptchaToken) { document.getElementById('signupErr').textContent = "Please complete the captcha."; return; }
+      if (!hcaptchaSignupToken) { document.getElementById('signupErr').textContent = "Please complete the captcha."; return; }
       const res = await fetch(`${API}/signup`, {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({username, email, password, captchaToken: hcaptchaToken})
+        body: JSON.stringify({username, email, password, captchaToken: hcaptchaSignupToken})
       });
       const data = await res.json();
       if (data.success) {
         // Immediately log user in for fun mode
         const res2 = await fetch(`${API}/login`, {
           method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({username, password})
+          body: JSON.stringify({username, password, captchaToken: hcaptchaSignupToken})
         });
         const data2 = await res2.json();
         if (data2.success) {
@@ -243,14 +282,13 @@
         }
       } else {
         document.getElementById('signupErr').textContent = data.message || "Signup failed";
-        // Reset captcha after fail
-        if (window.hcaptcha) hcaptcha.reset();
-        hcaptchaToken = "";
+        if (window.hcaptcha) hcaptcha.reset(document.getElementById('hcaptcha-signup').firstChild);
+        hcaptchaSignupToken = "";
       }
     };
 
     function afterLogin() {
-      hide('loginPage');
+      hide('loginPage'); hide('settingsSection');
       show('mainPage');
       setText('userName', user);
       refreshBalance();
@@ -261,29 +299,37 @@
       gotoLogin();
     };
 
+    document.getElementById('btnSettings').onclick = function() {
+      hide('mainPage');
+      show('settingsSection');
+      document.getElementById('settingsMsg').textContent = "";
+      document.getElementById('formChangePassword').reset();
+      document.getElementById('formChangeEmail').reset();
+    };
+
     // ---------- Main Page Buttons ----------
     document.getElementById('btnCrash').onclick = function() {
-      hide('mainPage');
+      hide('mainPage'); hide('settingsSection');
       show('crashSection');
       startCrashPoll();
     };
     document.getElementById('btnCoinflip').onclick = function() {
-      hide('mainPage');
+      hide('mainPage'); hide('settingsSection');
       show('coinflipSection');
       resetCoinflip();
     };
     document.getElementById('btnRoulette').onclick = function() {
-      hide('mainPage');
+      hide('mainPage'); hide('settingsSection');
       show('rouletteSection');
       resetRoulette();
     };
     document.getElementById('btn3cp').onclick = function() {
-      hide('mainPage');
+      hide('mainPage'); hide('settingsSection');
       show('threecpSection');
       resetThreecp();
     };
     function backToMenu() {
-      hide('crashSection'); hide('coinflipSection'); hide('rouletteSection'); hide('threecpSection');
+      hide('crashSection'); hide('coinflipSection'); hide('rouletteSection'); hide('threecpSection'); hide('settingsSection');
       show('mainPage');
       stopCrashPoll();
       refreshBalance();
@@ -302,6 +348,45 @@
         setText('balance', "0.00");
       }
     }
+
+    // ---------- ACCOUNT SETTINGS ----------
+    document.getElementById('formChangePassword').onsubmit = async function(e){
+      e.preventDefault();
+      let msg = "";
+      const currentPassword = document.getElementById('currentPassword').value;
+      const newPassword = document.getElementById('newPassword').value;
+      const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+      if(!currentPassword || !newPassword || !confirmNewPassword) msg = "All fields required.";
+      else if(newPassword !== confirmNewPassword) msg = "Passwords do not match.";
+      else if(newPassword.length < 6) msg = "New password too short.";
+      if(msg){ document.getElementById('settingsMsg').textContent = msg; return; }
+      const res = await fetch(`${API}/change-password`, {
+        method:'POST',
+        headers:{'Authorization':'Bearer '+authToken, 'Content-Type':'application/json'},
+        body: JSON.stringify({currentPassword, newPassword})
+      });
+      const data = await res.json();
+      document.getElementById('settingsMsg').textContent = data.success ? "Password changed!" : (data.message || "Error");
+      if(data.success) this.reset();
+    };
+
+    document.getElementById('formChangeEmail').onsubmit = async function(e){
+      e.preventDefault();
+      let msg = "";
+      const currentPassword = document.getElementById('currentPassword2').value;
+      const newEmail = document.getElementById('newEmail').value;
+      if(!currentPassword || !newEmail) msg = "All fields required.";
+      else if(!/^\S+@\S+\.\S+$/.test(newEmail)) msg = "Invalid email.";
+      if(msg){ document.getElementById('settingsMsg').textContent = msg; return; }
+      const res = await fetch(`${API}/change-email`, {
+        method:'POST',
+        headers:{'Authorization':'Bearer '+authToken, 'Content-Type':'application/json'},
+        body: JSON.stringify({currentPassword, newEmail})
+      });
+      const data = await res.json();
+      document.getElementById('settingsMsg').textContent = data.success ? "Email changed!" : (data.message || "Error");
+      if(data.success) this.reset();
+    };
 
     // ---------- CRASH GAME ----------
     function startCrashPoll() {
