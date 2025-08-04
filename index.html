@@ -61,7 +61,8 @@
 const API = "https://desolate-shore-72677-e0fe07c2f233.herokuapp.com";
 let authToken = localStorage.getItem('token') || null;
 
-// Modal tab logic
+console.log("Casino JS loaded");
+
 document.getElementById('loginTab').onclick = function() {
     document.getElementById('loginTab').classList.add('active');
     document.getElementById('signupTab').classList.remove('active');
@@ -75,7 +76,6 @@ document.getElementById('signupTab').onclick = function() {
     document.getElementById('loginForm').classList.add('hidden');
 };
 
-// Show/hide
 function showGameInterface() {
     document.getElementById('modal').classList.add('hidden');
     document.getElementById('gameInterface').classList.remove('hidden');
@@ -86,8 +86,8 @@ function showModal() {
     document.getElementById('gameInterface').classList.add('hidden');
 }
 
-// Signup
 document.getElementById('signupButton').onclick = async function(e) {
+    console.log("Signup button clicked");
     e.preventDefault && e.preventDefault();
     const username = document.getElementById('signupUsername').value.trim();
     const email = document.getElementById('signupEmail').value.trim();
@@ -106,12 +106,14 @@ document.getElementById('signupButton').onclick = async function(e) {
         errorEl.textContent = 'Passwords do not match.'; errorEl.classList.remove('hidden'); return;
     }
     try {
+        console.log("Sending signup request to", `${API}/api/signup`);
         const res = await fetch(`${API}/api/signup`, {
             method: 'POST',
             headers: {'Content-Type':'application/json'},
             body: JSON.stringify({username, email, password})
         });
         const data = await res.json();
+        console.log("Signup response:", data);
         if (data.success) {
             // Auto-login after signup
             const loginRes = await fetch(`${API}/api/login`, {
@@ -136,20 +138,22 @@ document.getElementById('signupButton').onclick = async function(e) {
     }
 };
 
-// Login
 document.getElementById('loginButton').onclick = async function(e) {
+    console.log("Login button clicked");
     e.preventDefault && e.preventDefault();
     const username = document.getElementById('loginUsername').value.trim();
     const password = document.getElementById('loginPassword').value;
     const errorEl = document.getElementById('loginError');
     errorEl.classList.add('hidden'); errorEl.textContent = '';
     try {
+        console.log("Sending login request to", `${API}/api/login`);
         const res = await fetch(`${API}/api/login`, {
             method: 'POST',
             headers: {'Content-Type':'application/json'},
             body: JSON.stringify({username, password})
         });
         const data = await res.json();
+        console.log("Login response:", data);
         if (data.success && data.token) {
             localStorage.setItem('token', data.token);
             localStorage.setItem('username', data.username);
@@ -163,14 +167,12 @@ document.getElementById('loginButton').onclick = async function(e) {
     }
 };
 
-// Logout
 document.getElementById('logoutButton').onclick = function() {
     localStorage.removeItem('token'); localStorage.removeItem('username');
     authToken = null;
     showModal();
 };
 
-// On load, show game if logged in
 if (authToken && localStorage.getItem('username')) {
     showGameInterface();
 } else {
