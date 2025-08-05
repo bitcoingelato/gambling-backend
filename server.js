@@ -177,8 +177,7 @@ let crashState = {
 };
 
 /**
- * Linear 0.01 increments per tick, every 20ms,
- * for buttery-smooth, perfectly gradual multiplier: 1.01, 1.02, 1.03, ...
+ * Crash multiplier increases by exactly 0.01 every tick (20ms), using integer arithmetic for precision.
  */
 function startCrashRound() {
     crashState.roundId += 1;
@@ -194,8 +193,11 @@ function startCrashRound() {
         created: new Date()
     });
 
+    // Use integer arithmetic to avoid floating point errors
+    let multiplierInCents = 100; // 1.00
     let interval = setInterval(async () => {
-        crashState.multiplier = Math.round((crashState.multiplier + 0.01) * 100) / 100;
+        multiplierInCents += 1; // +0.01
+        crashState.multiplier = multiplierInCents / 100;
 
         if (crashState.multiplier >= crashState.crashAt) {
             crashState.status = 'crashed';
@@ -206,7 +208,7 @@ function startCrashRound() {
             setTimeout(startCrashRound, 4000);
             clearInterval(interval);
         }
-    }, 20); // 20ms per tick
+    }, 20);
 }
 setTimeout(startCrashRound, 2000);
 
