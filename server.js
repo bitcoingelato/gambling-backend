@@ -248,7 +248,7 @@ app.post('/api/coinflip/bet', authenticateToken, async (req, res) => {
 
     const result = Math.random() < 0.5 ? "heads" : "tails";
     const win = (choice === result);
-    let payout = win ? amount * 2 : 0;
+    let payout = win ? amount * 2 : 0; // <-- FIXED: payout is bet*2 if win, 0 if lose
     if (win) {
         await usersCollection.updateOne({ username: user.username }, { $inc: { balance: payout } });
     }
