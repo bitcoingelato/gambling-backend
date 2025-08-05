@@ -232,7 +232,7 @@
       <input class="input" id="loginUser" placeholder="Username">
       <input class="input" id="loginPass" type="password" placeholder="Password">
       <div class="captcha-wrap">
-        <div class="h-captcha" data-sitekey="b1e64024-155e-43da-a5e6-9b56729c337e"></div>
+        <div id="hcaptcha-login"></div>
       </div>
       <button class="game-btn" id="loginBtn">Login</button>
       <p style="text-align:center;">No account? <a href="#" id="showSignup" style="color:#ffc107;">Sign Up</a></p>
@@ -243,7 +243,7 @@
       <input class="input" id="signupEmail" type="email" placeholder="Email">
       <input class="input" id="signupPass" type="password" placeholder="Password">
       <div class="captcha-wrap">
-        <div class="h-captcha" data-sitekey="b1e64024-155e-43da-a5e6-9b56729c337e"></div>
+        <div id="hcaptcha-signup"></div>
       </div>
       <button class="game-btn" id="signupBtn">Sign Up (Fun Mode)</button>
       <p style="text-align:center;">Already have an account? <a href="#" id="showLogin" style="color:#ffc107;">Login</a></p>
@@ -420,16 +420,61 @@
     let currentCrashMultiplier = 1.00;
     let userBalance = 0; // Track user balance
     
+    // hCaptcha tokens
+    let hcaptchaLoginToken = "";
+    let hcaptchaSignupToken = "";
+    
     // ---------- INITIALIZATION ----------
     document.addEventListener('DOMContentLoaded', function() {
       console.log("DOM loaded, initializing...");
       
+      // Check for existing session
+      checkSession();
+      
       // Set up event listeners
       setupEventListeners();
       
-      // Check for existing session
-      checkSession();
+      // Initialize hCaptcha
+      renderHCaptchaLogin();
+      renderHCaptchaSignup();
     });
+    
+    // hCaptcha callback
+    window.onLoginHCaptcha = function(token) { 
+      console.log("Login captcha completed");
+      hcaptchaLoginToken = token; 
+    };
+    
+    window.onSignupHCaptcha = function(token) { 
+      console.log("Signup captcha completed");
+      hcaptchaSignupToken = token; 
+    };
+    
+    function renderHCaptchaLogin() {
+      if (window.hcaptcha) {
+        console.log("Rendering login captcha");
+        hcaptcha.render('hcaptcha-login', {
+          sitekey: 'b1e64024-155e-43da-a5e6-9b56729c337e',
+          callback: 'onLoginHCaptcha'
+        });
+      } else {
+        console.log("hCaptcha not loaded, waiting...");
+        setTimeout(renderHCaptchaLogin, 500);
+      }
+    }
+    
+    function renderHCaptchaSignup() {
+      if (window.hcaptcha) {
+        console.log("Rendering signup captcha");
+        hcaptcha.render('hcaptcha-signup', {
+          sitekey: 'b1e64024-155e-43da-a5e6-9b56729c337e',
+          callback: 'onSignupHCaptcha'
+        });
+      } else {
+        console.log("hCaptcha not loaded, waiting...");
+        setTimeout(renderHCaptchaSignup, 500);
+      }
+    }
 
     function setupEventListeners() {
       console.log("Setting up event listeners");
@@ -573,14 +618,6 @@
       
       const username = document.getElementById('loginUser').value.trim();
       const password = document.getElementById('loginPass').value;
-      let captchaResponse = '';
-      
-      try {
-        captchaResponse = hcaptcha.getResponse();
-        console.log("Got captcha response:", captchaResponse ? "yes" : "no");
-      } catch (e) {
-        console.error("hCaptcha error:", e);
-      }
       
       document.getElementById('loginErr').textContent = '';
       
@@ -589,16 +626,10 @@
         return;
       }
       
-      if (!captchaResponse) {
+      if (!hcaptchaLoginToken) {
         document.getElementById('loginErr').textContent = 'Please complete the captcha.';
         return;
       }
-      
-      // Show loading state
-      const loginBtn = document.getElementById('loginBtn');
-      const originalText = loginBtn.textContent;
-      loginBtn.disabled = true;
-      loginBtn.textContent = 'Logging in...';
       
       try {
         console.log("Sending login request to server");
@@ -608,7 +639,7 @@
           body: JSON.stringify({
             username,
             password,
-            captchaToken: captchaResponse
+            captchaToken: hcaptchaLoginToken
           })
         });
         
@@ -624,7 +655,10 @@
         } else {
           document.getElementById('loginErr').textContent = data.message || 'Login failed.';
           try {
-            hcaptcha.reset();
+            if (window.hcaptcha) {
+              hcaptcha.reset('hcaptcha-login');
+            }
+            hcaptchaLoginToken = "";
           } catch (e) {
             console.warn("Couldn't reset captcha:", e);
           }
@@ -632,10 +666,6 @@
       } catch (err) {
         document.getElementById('loginErr').textContent = 'Network error. Try again.';
         console.error('Login error:', err);
-      } finally {
-        // Restore button state
-        loginBtn.disabled = false;
-        loginBtn.textContent = originalText;
       }
     }
 
@@ -645,18 +675,6 @@
       const username = document.getElementById('signupUser').value.trim();
       const email = document.getElementById('signupEmail').value.trim();
       const password = document.getElementById('signupPass').value;
-      let captchaResponse = '';
-      
-      try {
-        // Use the signup captcha
-        captchaResponse = hcaptcha.getResponse(document.querySelector('#signupBox .h-captcha').getAttribute('data-hcaptcha-widget-id'));
-        if (!captchaResponse) {
-          captchaResponse = hcaptcha.getResponse(); // Fallback
-        }
-        console.log("Got captcha response:", captchaResponse ? "yes" : "no");
-      } catch (e) {
-        console.error("hCaptcha error:", e);
-      }
       
       document.getElementById('signupErr').textContent = '';
       
@@ -665,16 +683,10 @@
         return;
       }
       
-      if (!captchaResponse) {
+      if (!hcaptchaSignupToken) {
         document.getElementById('signupErr').textContent = 'Please complete the captcha.';
         return;
       }
-      
-      // Show loading state
-      const signupBtn = document.getElementById('signupBtn');
-      const originalText = signupBtn.textContent;
-      signupBtn.disabled = true;
-      signupBtn.textContent = 'Signing up...';
       
       try {
         console.log("Sending signup request to server");
@@ -685,7 +697,7 @@
             username,
             email,
             password,
-            captchaToken: captchaResponse
+            captchaToken: hcaptchaSignupToken
           })
         });
         
@@ -701,7 +713,7 @@
             body: JSON.stringify({
               username,
               password,
-              captchaToken: captchaResponse
+              captchaToken: hcaptchaSignupToken
             })
           });
           
@@ -722,7 +734,10 @@
         } else {
           document.getElementById('signupErr').textContent = data.message || 'Signup failed.';
           try {
-            hcaptcha.reset();
+            if (window.hcaptcha) {
+              hcaptcha.reset('hcaptcha-signup');
+            }
+            hcaptchaSignupToken = "";
           } catch (e) {
             console.warn("Couldn't reset captcha:", e);
           }
@@ -730,10 +745,6 @@
       } catch (err) {
         document.getElementById('signupErr').textContent = 'Network error. Try again.';
         console.error('Signup error:', err);
-      } finally {
-        // Restore button state
-        signupBtn.disabled = false;
-        signupBtn.textContent = originalText;
       }
     }
 
@@ -766,7 +777,11 @@
       
       // Reset hCaptcha
       try {
-        hcaptcha.reset();
+        if (window.hcaptcha) {
+          hcaptcha.reset();
+          hcaptchaLoginToken = "";
+          hcaptchaSignupToken = "";
+        }
       } catch (e) {
         console.warn("Couldn't reset captcha during logout:", e);
       }
@@ -1499,8 +1514,4 @@
           // Get result after a delay
           setTimeout(async function() {
             try {
-              const stateRes = await fetch(`${API}/roulette/state`, {
-                headers: { 'Authorization': 'Bearer ' + authToken }
-              });
-              
-              const stateData = await state
+              const stateRes = await fetch(`${API}/roulette/
