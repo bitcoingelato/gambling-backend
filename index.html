@@ -736,7 +736,7 @@ chatboxToggle.onclick = function() {
 };
 
 function fetchChatMessages() {
-  fetch('/api/chat')
+  fetch(`${API}/chat`)
     .then(res => res.json())
     .then(data => {
       if (!data.success) return;
@@ -774,7 +774,7 @@ chatForm.onsubmit = function(e) {
   }
   const msg = chatInput.value.trim();
   if (!msg) return;
-  fetch('/api/chat', {
+  fetch(`${API}/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(authToken ? {'Authorization': 'Bearer ' + authToken} : {}) },
     body: JSON.stringify({ message: msg })
