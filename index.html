@@ -222,20 +222,36 @@
       color: #222;
       font-weight: bold;
     }
+    
+    /* Debug panel */
+    #debugPanel {
+      margin-top: 15px;
+      background: #333;
+      border-radius: 5px;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 12px;
+      max-height: 100px;
+      overflow-y: auto;
+      color: #ffc107;
+      display: none;
+    }
   </style>
 </head>
 <body>
   <!-- LOGIN/SIGNUP -->
   <div class="container" id="loginPage">
     <h2>Bitcoin Gelato Casino</h2>
+    <div id="debugPanel"></div>
+    
     <div id="loginBox">
       <input class="input" id="loginUser" placeholder="Username">
       <input class="input" id="loginPass" type="password" placeholder="Password">
       <div class="captcha-wrap">
         <div id="login-captcha"></div>
       </div>
-      <button class="game-btn" id="loginBtn" onclick="login()">Login</button>
-      <p style="text-align:center;">No account? <a href="#" onclick="toggleSignup(event)" style="color:#ffc107;">Sign Up</a></p>
+      <button class="game-btn" id="loginBtn">Login</button>
+      <p style="text-align:center;">No account? <a href="#" id="showSignupBtn" style="color:#ffc107;">Sign Up</a></p>
       <div class="err" id="loginErr"></div>
     </div>
     <div id="signupBox" class="hidden">
@@ -245,8 +261,8 @@
       <div class="captcha-wrap">
         <div id="signup-captcha"></div>
       </div>
-      <button class="game-btn" id="signupBtn" onclick="signup()">Sign Up (Fun Mode)</button>
-      <p style="text-align:center;">Already have an account? <a href="#" onclick="toggleLogin(event)" style="color:#ffc107;">Login</a></p>
+      <button class="game-btn" id="signupBtn">Sign Up (Fun Mode)</button>
+      <p style="text-align:center;">Already have an account? <a href="#" id="showLoginBtn" style="color:#ffc107;">Login</a></p>
       <div class="err" id="signupErr"></div>
     </div>
   </div>
@@ -255,21 +271,21 @@
   <div class="container hidden" id="mainPage">
     <div id="userBox">
       Welcome, <b id="userName"></b>!
-      <button id="logoutBtn" onclick="logout()">Logout</button>
+      <button id="logoutBtn">Logout</button>
     </div>
     <div id="balanceBox">
       Fun Mode Balance: <span id="balance">0.00</span>
     </div>
-    <button class="game-btn" id="btnCrash" onclick="showCrashSection()">Crash</button>
-    <button class="game-btn" id="btnCoinflip" onclick="showCoinflipSection()">Coinflip</button>
-    <button class="game-btn" id="btnRoulette" onclick="showRouletteSection()">Roulette</button>
-    <button class="game-btn" id="btn3cp" onclick="show3CPSection()">3 Card Poker</button>
-    <button class="game-btn" id="btnSettings" onclick="showSettingsSection()" style="background: #444; color: #ffc107;">Account Settings</button>
+    <button class="game-btn" id="btnCrash">Crash</button>
+    <button class="game-btn" id="btnCoinflip">Coinflip</button>
+    <button class="game-btn" id="btnRoulette">Roulette</button>
+    <button class="game-btn" id="btn3cp">3 Card Poker</button>
+    <button class="game-btn" id="btnSettings" style="background: #444; color: #ffc107;">Account Settings</button>
   </div>
 
   <!-- CRASH -->
   <div class="container hidden" id="crashSection">
-    <button onclick="backToMenu()" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
+    <button id="backFromCrash" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
     <h2>Crash (Fun Mode)</h2>
     <div class="section">
       <!-- New crash game UI -->
@@ -282,9 +298,9 @@
       <div id="crashTimer" style="text-align:center; color:#ffc107; font-size:1.2em; margin: 10px 0;">Next round in <span id="countdown">9</span>s</div>
       <div class="bet-row">
         <input id="crashBetAmount" type="number" step="0.01" min="0.01" value="1.00">
-        <button id="crashBetBtn" onclick="placeCrashBet()">Place Bet</button>
-        <button id="crashCancelBtn" onclick="cancelCrashBet()" disabled>Cancel Bet</button>
-        <button id="crashCashoutBtn" onclick="crashCashout()" disabled>Cash Out</button>
+        <button id="crashBetBtn">Place Bet</button>
+        <button id="crashCancelBtn" disabled>Cancel Bet</button>
+        <button id="crashCashoutBtn" disabled>Cash Out</button>
       </div>
       <div id="crashMsg" class="err"></div>
       
@@ -298,7 +314,7 @@
     <!-- Provably fair section -->
     <div style="margin-top: 20px; padding: 10px; background: #333; border-radius: 5px;">
       <h3>Provably Fair</h3>
-      <button id="verifyFairnessBtn" onclick="verifyCrashFairness()">Verify Fairness</button>
+      <button id="verifyFairnessBtn">Verify Fairness</button>
     </div>
     
     <div id="crashHistoryDiv">
@@ -317,14 +333,14 @@
 
   <!-- COINFLIP -->
   <div class="container hidden" id="coinflipSection">
-    <button onclick="backToMenu()" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
+    <button id="backFromCoinflip" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
     <h2>Coinflip</h2>
     <div class="section">
       <div class="bet-row flex">
         <input id="coinflipBetAmount" type="number" step="0.01" min="0.01" value="1.00">
-        <button class="coin-btn" id="btnHeads" onclick="selectCoinflipSide('heads')">H</button>
-        <button class="coin-btn" id="btnTails" onclick="selectCoinflipSide('tails')">T</button>
-        <button id="coinflipBetBtn" onclick="flipCoin()">Flip</button>
+        <button class="coin-btn" id="btnHeads">H</button>
+        <button class="coin-btn" id="btnTails">T</button>
+        <button id="coinflipBetBtn">Flip</button>
       </div>
       <div id="coinflipMsg" class="err"></div>
       <div id="coinflipResult">Waiting for flip...</div>
@@ -333,14 +349,14 @@
 
   <!-- ROULETTE -->
   <div class="container hidden" id="rouletteSection">
-    <button onclick="backToMenu()" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
+    <button id="backFromRoulette" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
     <h2>Roulette</h2>
     <div class="section">
       <div class="bet-row flex">
         <input id="rouletteBetAmount" type="number" step="0.01" min="0.01" value="1.00">
-        <button class="roul-btn red" id="btnRed" onclick="rouletteBet('red')">Red</button>
-        <button class="roul-btn black" id="btnBlack" onclick="rouletteBet('black')">Black</button>
-        <button class="roul-btn green" id="btnGreen" onclick="rouletteBet('green')">Green</button>
+        <button class="roul-btn red" id="btnRed">Red</button>
+        <button class="roul-btn black" id="btnBlack">Black</button>
+        <button class="roul-btn green" id="btnGreen">Green</button>
       </div>
       <div class="roulette-wrapper">
         <div class="roulette-pointer"></div>
@@ -353,18 +369,18 @@
 
   <!-- 3 CARD POKER -->
   <div class="container hidden" id="threecpSection">
-    <button onclick="backToMenu()" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
+    <button id="backFrom3CP" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
     <h2>3 Card Poker</h2>
     <div class="section">
       <div class="bet-row">
         <input id="threecpBetAmount" type="number" step="0.01" min="0.01" value="1.00">
-        <button id="threecpAnteBtn" onclick="place3CPAnte()">Ante</button>
+        <button id="threecpAnteBtn">Ante</button>
       </div>
       <div id="threecpMsg" class="err"></div>
       <div id="threecpPlayer"></div>
       <div id="threecpDecisionBtns" class="hidden">
-        <button id="threecpPlayBtn" onclick="play3CP()">Play (Up Ante)</button>
-        <button id="threecpFoldBtn" onclick="fold3CP()">Fold</button>
+        <button id="threecpPlayBtn">Play (Up Ante)</button>
+        <button id="threecpFoldBtn">Fold</button>
       </div>
       <div id="threecpDealer"></div>
       <div id="threecpResult">Waiting for bet...</div>
@@ -373,17 +389,17 @@
 
   <!-- ACCOUNT SETTINGS -->
   <div class="container hidden" id="settingsSection">
-    <button onclick="backToMenu()" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
+    <button id="backFromSettings" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
     <h2>Account Settings</h2>
     <div id="settingsMsg" class="err"></div>
-    <form id="formChangePassword" onsubmit="changePassword(event)">
+    <form id="formChangePassword">
       <label>Change Password</label>
       <input id="currentPassword" type="password" placeholder="Current Password" required>
       <input id="newPassword" type="password" placeholder="New Password" required>
       <input id="confirmNewPassword" type="password" placeholder="Confirm New Password" required>
       <button type="submit" class="game-btn settings-btn">Change Password</button>
     </form>
-    <form id="formChangeEmail" onsubmit="changeEmail(event)">
+    <form id="formChangeEmail">
       <label>Change Email</label>
       <input id="currentPassword2" type="password" placeholder="Current Password" required>
       <input id="newEmail" type="email" placeholder="New Email" required>
@@ -401,15 +417,18 @@
         <p>Hash: <span id="verifyHash"></span></p>
         <p>Crash Point: <span id="verifyCrashPoint"></span></p>
       </div>
-      <button id="closeVerifyBtn" onclick="document.getElementById('verifyModal').classList.add('hidden')">Close</button>
+      <button id="closeVerifyBtn">Close</button>
     </div>
   </div>
 
-  <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
+  <script src="https://js.hcaptcha.com/1/api.js?render=explicit&onload=hcaptchaLoaded" async defer></script>
   <script>
     // ======= CONFIG =======
     const API = "https://desolate-shore-72677-e0fe07c2f233.herokuapp.com/api";
+    const DEBUG = true; // Enable debug mode
     // ======================
+    
+    // Global variables
     let authToken = '', user = '', crashPoll = null, placedBet = null, crashRoundId = 0;
     let coinflipChoice = null;
     let countdownInterval = null;
@@ -424,49 +443,129 @@
     let loginCaptchaId = null;
     let signupCaptchaId = null;
     
+    // Debug logging
+    function debug(message) {
+      if (!DEBUG) return;
+      
+      console.log(message);
+      const debugPanel = document.getElementById('debugPanel');
+      if (debugPanel) {
+        debugPanel.style.display = 'block';
+        const timestamp = new Date().toLocaleTimeString();
+        debugPanel.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+        debugPanel.scrollTop = debugPanel.scrollHeight;
+      }
+    }
+    
     // ---------- INITIALIZATION ----------
     document.addEventListener('DOMContentLoaded', function() {
-      console.log("DOM loaded, initializing...");
+      debug("DOM loaded, initializing...");
+      
+      // Set up event listeners
+      setupEventListeners();
       
       // Check for existing session
       checkSession();
-      
-      // Initialize hCaptcha after a slight delay to ensure the API is loaded
+    });
+    
+    // hCaptcha loaded callback
+    window.hcaptchaLoaded = function() {
+      debug("hCaptcha library loaded");
+      initCaptcha();
+    };
+    
+    function initCaptcha() {
+      debug("Initializing captchas...");
       setTimeout(function() {
         try {
-          if (window.hcaptcha) {
-            console.log("Initializing hCaptcha...");
-            // Render login captcha
-            loginCaptchaId = hcaptcha.render('login-captcha', {
-              sitekey: 'b1e64024-155e-43da-a5e6-9b56729c337e',
-              theme: 'dark'
-            });
-            
-            // Render signup captcha
-            signupCaptchaId = hcaptcha.render('signup-captcha', {
-              sitekey: 'b1e64024-155e-43da-a5e6-9b56729c337e',
-              theme: 'dark'
-            });
-            console.log("hCaptcha initialized successfully");
-          } else {
-            console.warn("hCaptcha not loaded yet");
-          }
+          // Initialize login captcha
+          loginCaptchaId = hcaptcha.render('login-captcha', {
+            sitekey: 'b1e64024-155e-43da-a5e6-9b56729c337e',
+            theme: 'dark'
+          });
+          debug("Login captcha initialized: " + loginCaptchaId);
+          
+          // Initialize signup captcha
+          signupCaptchaId = hcaptcha.render('signup-captcha', {
+            sitekey: 'b1e64024-155e-43da-a5e6-9b56729c337e',
+            theme: 'dark'
+          });
+          debug("Signup captcha initialized: " + signupCaptchaId);
         } catch (e) {
-          console.error("Error initializing hCaptcha:", e);
+          debug("Error initializing captcha: " + e.message);
+          // Try again in 1 second
+          setTimeout(initCaptcha, 1000);
         }
-      }, 1000);
-    });
-
-    function toggleSignup(e) {
-      e.preventDefault();
-      document.getElementById('loginBox').classList.add('hidden');
-      document.getElementById('signupBox').classList.remove('hidden');
+      }, 500);
     }
-    
-    function toggleLogin(e) {
-      e.preventDefault();
-      document.getElementById('loginBox').classList.remove('hidden');
-      document.getElementById('signupBox').classList.add('hidden');
+
+    function setupEventListeners() {
+      debug("Setting up event listeners");
+      
+      // Auth listeners
+      document.getElementById('showSignupBtn').addEventListener('click', function(e) {
+        e.preventDefault();
+        document.getElementById('loginBox').classList.add('hidden');
+        document.getElementById('signupBox').classList.remove('hidden');
+      });
+      
+      document.getElementById('showLoginBtn').addEventListener('click', function(e) {
+        e.preventDefault();
+        document.getElementById('loginBox').classList.remove('hidden');
+        document.getElementById('signupBox').classList.add('hidden');
+      });
+      
+      document.getElementById('loginBtn').addEventListener('click', login);
+      document.getElementById('signupBtn').addEventListener('click', signup);
+      document.getElementById('logoutBtn').addEventListener('click', logout);
+      
+      // Main navigation
+      document.getElementById('btnCrash').addEventListener('click', showCrashSection);
+      document.getElementById('btnCoinflip').addEventListener('click', showCoinflipSection);
+      document.getElementById('btnRoulette').addEventListener('click', showRouletteSection);
+      document.getElementById('btn3cp').addEventListener('click', show3CPSection);
+      document.getElementById('btnSettings').addEventListener('click', showSettingsSection);
+      
+      // Back buttons
+      document.getElementById('backFromCrash').addEventListener('click', backToMenu);
+      document.getElementById('backFromCoinflip').addEventListener('click', backToMenu);
+      document.getElementById('backFromRoulette').addEventListener('click', backToMenu);
+      document.getElementById('backFrom3CP').addEventListener('click', backToMenu);
+      document.getElementById('backFromSettings').addEventListener('click', backToMenu);
+      
+      // Crash game listeners
+      document.getElementById('crashBetBtn').addEventListener('click', placeCrashBet);
+      document.getElementById('crashCancelBtn').addEventListener('click', cancelCrashBet);
+      document.getElementById('crashCashoutBtn').addEventListener('click', crashCashout);
+      document.getElementById('verifyFairnessBtn').addEventListener('click', verifyCrashFairness);
+      document.getElementById('closeVerifyBtn').addEventListener('click', function() {
+        document.getElementById('verifyModal').classList.add('hidden');
+      });
+      
+      // Coinflip listeners
+      document.getElementById('btnHeads').addEventListener('click', function() { selectCoinflipSide('heads'); });
+      document.getElementById('btnTails').addEventListener('click', function() { selectCoinflipSide('tails'); });
+      document.getElementById('coinflipBetBtn').addEventListener('click', flipCoin);
+      
+      // Roulette listeners
+      document.getElementById('btnRed').addEventListener('click', function() { rouletteBet('red'); });
+      document.getElementById('btnBlack').addEventListener('click', function() { rouletteBet('black'); });
+      document.getElementById('btnGreen').addEventListener('click', function() { rouletteBet('green'); });
+      
+      // 3CP listeners
+      document.getElementById('threecpAnteBtn').addEventListener('click', place3CPAnte);
+      document.getElementById('threecpPlayBtn').addEventListener('click', play3CP);
+      document.getElementById('threecpFoldBtn').addEventListener('click', fold3CP);
+      
+      // Settings forms
+      document.getElementById('formChangePassword').addEventListener('submit', function(e) {
+        e.preventDefault();
+        changePassword();
+      });
+      document.getElementById('formChangeEmail').addEventListener('submit', function(e) {
+        e.preventDefault();
+        changeEmail();
+      });
     }
 
     // ---------- UTILITY FUNCTIONS ----------    
@@ -505,60 +604,72 @@
       user = localStorage.getItem('user');
       
       if (authToken && user) {
+        debug("Found saved session for user: " + user);
         validateToken(authToken).then(valid => {
           if (valid) {
+            debug("Token is valid, logging in");
             afterLogin();
           } else {
+            debug("Token is invalid, clearing session");
             logout(false);
           }
         });
+      } else {
+        debug("No saved session found");
       }
     }
     
     // Validate the token with the server
     async function validateToken(token) {
       try {
+        debug("Validating token with server");
         const res = await fetch(`${API}/balance`, {
           headers: { 'Authorization': 'Bearer ' + token }
         });
         
         const data = await res.json();
         if (data.success) {
+          debug("Token validation successful");
           return true;
         } else {
+          debug("Token validation failed");
           return false;
         }
       } catch (err) {
+        debug("Error validating token: " + err);
         return false;
       }
     }
 
     // ---------- AUTH FUNCTIONS ----------
     async function login() {
-      console.log("Login function called");
+      debug("Login function called");
       
       const username = document.getElementById('loginUser').value.trim();
       const password = document.getElementById('loginPass').value;
-      let captchaToken = '';
-      
-      try {
-        if (window.hcaptcha && loginCaptchaId) {
-          captchaToken = hcaptcha.getResponse(loginCaptchaId);
-          console.log("Got captcha token:", captchaToken ? "yes" : "no");
-        }
-      } catch (e) {
-        console.error("Error getting captcha token:", e);
-      }
       
       document.getElementById('loginErr').textContent = '';
       
       if (!username || !password) {
         document.getElementById('loginErr').textContent = 'Enter both username and password.';
+        debug("Missing username or password");
         return;
+      }
+      
+      // Get captcha response
+      let captchaToken = '';
+      try {
+        if (hcaptcha && loginCaptchaId) {
+          captchaToken = hcaptcha.getResponse(loginCaptchaId);
+          debug("Got captcha token: " + (captchaToken ? "yes" : "no"));
+        }
+      } catch (e) {
+        debug("Error getting captcha token: " + e);
       }
       
       if (!captchaToken) {
         document.getElementById('loginErr').textContent = 'Please complete the captcha.';
+        debug("Captcha not completed");
         return;
       }
       
@@ -568,7 +679,7 @@
       loginBtn.textContent = 'Logging in...';
       
       try {
-        console.log("Sending login request");
+        debug("Sending login request to server");
         const res = await fetch(`${API}/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -579,9 +690,8 @@
           })
         });
         
-        console.log("Login response received");
         const data = await res.json();
-        console.log("Login data:", data);
+        debug("Login response received: " + JSON.stringify(data));
         
         if (data.success) {
           authToken = data.token;
@@ -589,19 +699,21 @@
           localStorage.setItem('authToken', authToken);
           localStorage.setItem('user', user);
           afterLogin();
+          debug("Login successful");
         } else {
           document.getElementById('loginErr').textContent = data.message || 'Login failed.';
+          debug("Login failed: " + data.message);
           try {
-            if (window.hcaptcha) {
+            if (hcaptcha) {
               hcaptcha.reset(loginCaptchaId);
             }
           } catch (e) {
-            console.warn("Couldn't reset captcha:", e);
+            debug("Couldn't reset captcha: " + e);
           }
         }
       } catch (err) {
-        console.error("Login error:", err);
         document.getElementById('loginErr').textContent = 'Network error. Try again.';
+        debug("Login error: " + err);
       } finally {
         loginBtn.disabled = false;
         loginBtn.textContent = 'Login';
@@ -609,31 +721,34 @@
     }
 
     async function signup() {
-      console.log("Signup function called");
+      debug("Signup function called");
       
       const username = document.getElementById('signupUser').value.trim();
       const email = document.getElementById('signupEmail').value.trim();
       const password = document.getElementById('signupPass').value;
-      let captchaToken = '';
-      
-      try {
-        if (window.hcaptcha && signupCaptchaId) {
-          captchaToken = hcaptcha.getResponse(signupCaptchaId);
-          console.log("Got signup captcha token:", captchaToken ? "yes" : "no");
-        }
-      } catch (e) {
-        console.error("Error getting signup captcha token:", e);
-      }
       
       document.getElementById('signupErr').textContent = '';
       
       if (!username || !email || !password) {
         document.getElementById('signupErr').textContent = 'All fields are required.';
+        debug("Missing signup fields");
         return;
+      }
+      
+      // Get captcha response
+      let captchaToken = '';
+      try {
+        if (hcaptcha && signupCaptchaId) {
+          captchaToken = hcaptcha.getResponse(signupCaptchaId);
+          debug("Got signup captcha token: " + (captchaToken ? "yes" : "no"));
+        }
+      } catch (e) {
+        debug("Error getting signup captcha token: " + e);
       }
       
       if (!captchaToken) {
         document.getElementById('signupErr').textContent = 'Please complete the captcha.';
+        debug("Signup captcha not completed");
         return;
       }
       
@@ -643,7 +758,7 @@
       signupBtn.textContent = 'Signing up...';
       
       try {
-        console.log("Sending signup request");
+        debug("Sending signup request to server");
         const res = await fetch(`${API}/signup`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -655,13 +770,12 @@
           })
         });
         
-        console.log("Signup response received");
         const data = await res.json();
-        console.log("Signup data:", data);
+        debug("Signup response received: " + JSON.stringify(data));
         
         if (data.success) {
-          console.log("Signup successful, attempting auto-login");
-          // Try to log in automatically with same credentials
+          // Try to log in automatically
+          debug("Signup successful, attempting automatic login");
           const loginRes = await fetch(`${API}/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -673,7 +787,7 @@
           });
           
           const loginData = await loginRes.json();
-          console.log("Auto-login response:", loginData);
+          debug("Auto-login response: " + JSON.stringify(loginData));
           
           if (loginData.success) {
             authToken = loginData.token;
@@ -681,25 +795,28 @@
             localStorage.setItem('authToken', authToken);
             localStorage.setItem('user', user);
             afterLogin();
+            debug("Auto-login successful");
           } else {
             document.getElementById('signupErr').textContent = 'Signup successful! Please log in.';
             document.getElementById('loginBox').classList.remove('hidden');
             document.getElementById('signupBox').classList.add('hidden');
             document.getElementById('loginUser').value = username;
+            debug("Auto-login failed, showing login form");
           }
         } else {
           document.getElementById('signupErr').textContent = data.message || 'Signup failed.';
+          debug("Signup failed: " + data.message);
           try {
-            if (window.hcaptcha) {
+            if (hcaptcha) {
               hcaptcha.reset(signupCaptchaId);
             }
           } catch (e) {
-            console.warn("Couldn't reset signup captcha:", e);
+            debug("Couldn't reset signup captcha: " + e);
           }
         }
       } catch (err) {
-        console.error("Signup error:", err);
         document.getElementById('signupErr').textContent = 'Network error. Try again.';
+        debug("Signup error: " + err);
       } finally {
         signupBtn.disabled = false;
         signupBtn.textContent = 'Sign Up (Fun Mode)';
@@ -714,6 +831,7 @@
     }
 
     function logout(redirect = true) {
+      debug("Logging out");
       authToken = '';
       user = '';
       localStorage.removeItem('authToken');
@@ -733,12 +851,13 @@
       
       // Reset hCaptcha
       try {
-        if (window.hcaptcha) {
+        if (hcaptcha) {
+          debug("Resetting captchas");
           if (loginCaptchaId) hcaptcha.reset(loginCaptchaId);
           if (signupCaptchaId) hcaptcha.reset(signupCaptchaId);
         }
       } catch (e) {
-        console.warn("Couldn't reset captcha during logout:", e);
+        debug("Couldn't reset captcha during logout: " + e);
       }
     }
 
@@ -809,6 +928,7 @@
       if (!authToken) return;
       
       try {
+        debug("Fetching balance");
         const res = await fetch(`${API}/balance`, {
           headers: { 'Authorization': 'Bearer ' + authToken }
         });
@@ -816,19 +936,19 @@
         const data = await res.json();
         
         if (data.success) {
+          debug("Balance updated: " + data.balance);
           updateBalance(data.balance);
         } else if (data.message === "Invalid token") {
+          debug("Invalid token while fetching balance");
           logout();
         }
       } catch (err) {
-        console.error('Balance error:', err);
+        debug('Balance error: ' + err);
       }
     }
 
     // ---------- ACCOUNT SETTINGS ----------
-    async function changePassword(e) {
-      if (e) e.preventDefault();
-      
+    async function changePassword() {
       const currentPassword = document.getElementById('currentPassword').value;
       const newPassword = document.getElementById('newPassword').value;
       const confirmNewPassword = document.getElementById('confirmNewPassword').value;
@@ -869,9 +989,7 @@
       }
     }
 
-    async function changeEmail(e) {
-      if (e) e.preventDefault();
-      
+    async function changeEmail() {
       const currentPassword = document.getElementById('currentPassword2').value;
       const newEmail = document.getElementById('newEmail').value;
       const settingsMsg = document.getElementById('settingsMsg');
@@ -1032,7 +1150,7 @@
           logout();
         }
       } catch (err) {
-        console.error('Error fetching crash state:', err);
+        debug('Error fetching crash state: ' + err);
       }
     }
     
@@ -1179,7 +1297,7 @@
           });
         }
       } catch (err) {
-        console.error('Crash history error:', err);
+        debug('Crash history error: ' + err);
       }
     }
     
@@ -1225,7 +1343,7 @@
         }
       } catch (err) {
         document.getElementById('crashMsg').textContent = "Error connecting to server";
-        console.error('Crash bet error:', err);
+        debug('Crash bet error: ' + err);
       }
     }
     
@@ -1262,7 +1380,7 @@
         }
       } catch (err) {
         document.getElementById('crashMsg').textContent = "Error connecting to server";
-        console.error('Cancel crash bet error:', err);
+        debug('Cancel crash bet error: ' + err);
       }
     }
     
@@ -1300,7 +1418,7 @@
         }
       } catch (err) {
         document.getElementById('crashMsg').textContent = "Error connecting to server";
-        console.error('Crash cashout error:', err);
+        debug('Crash cashout error: ' + err);
       }
     }
     
@@ -1407,91 +1525,4 @@
           // If won, add winnings to balance
           if (data.win && data.payout) {
             document.getElementById('coinflipResult').textContent += ` Won ${data.payout.toFixed(2)}`;
-            updateBalance(userBalance + data.payout);
-          }
-        } else {
-          document.getElementById('coinflipMsg').textContent = data.message || "Bet failed";
-          // Restore balance on error
-          updateBalance(userBalance + amt);
-        }
-      } catch (err) {
-        document.getElementById('coinflipMsg').textContent = "Network error. Please try again.";
-        console.error('Coinflip error:', err);
-        // Restore balance on error
-        updateBalance(userBalance + amt);
-      }
-    }
-
-    // ---------- ROULETTE GAME ----------
-    let rouletteSpinning = false;
-    
-    function resetRoulette() {
-      document.getElementById('rouletteBetAmount').value = "1.00";
-      document.getElementById('rouletteMsg').textContent = "";
-      document.getElementById('rouletteResult').textContent = "Waiting for spin...";
-      document.getElementById('rouletteWheel').style.transform = 'rotate(0deg)';
-      rouletteSpinning = false;
-    }
-    
-    async function rouletteBet(color) {
-      if (rouletteSpinning) return;
-      document.getElementById('rouletteMsg').textContent = "";
-      const amt = parseFloat(document.getElementById('rouletteBetAmount').value);
-      if (!amt || amt <= 0) { 
-        document.getElementById('rouletteMsg').textContent = "Enter a bet > 0"; 
-        return; 
-      }
-      
-      // Check if bet amount exceeds balance
-      if (amt > userBalance) {
-        document.getElementById('rouletteMsg').textContent = "Insufficient balance"; 
-        return;
-      }
-      
-      try {
-        // Immediately deduct from balance
-        updateBalance(userBalance - amt);
-        
-        const res = await fetch(`${API}/roulette/bet`, {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + authToken,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            amount: amt,
-            color
-          })
-        });
-        
-        const data = await res.json();
-        
-        if (data.success) {
-          rouletteSpinning = true;
-          document.getElementById('rouletteResult').textContent = "Spinning...";
-          
-          // Get result after a delay
-          setTimeout(async function() {
-            try {
-              const stateRes = await fetch(`${API}/roulette/state`, {
-                headers: { 'Authorization': 'Bearer ' + authToken }
-              });
-              
-              const stateData = await stateRes.json();
-              
-              if (stateData.success && stateData.round) {
-                // Animate wheel
-                const resultColor = stateData.round.color;
-                const angle = Math.floor(Math.random() * 360) + 720; // 2+ full rotations
-                document.getElementById('rouletteWheel').style.transform = `rotate(${angle}deg)`;
-                
-                setTimeout(function() {
-                  const win = (color === resultColor);
-                  const payout = win ? (color === "green" ? amt * 14 : amt * 2) : 0;
-                  document.getElementById('rouletteResult').textContent = 
-                    `Result: ${resultColor}. ${win ? "You win!" : "You lose."}`;
-                  
-                  if (win && payout > 0) {
-                    document.getElementById('rouletteResult').textContent += ` Won ${payout.toFixed(2)}`;
-                    updateBalance(userBalance + payout);
-                
+            updateBalance(user
