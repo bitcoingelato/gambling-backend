@@ -176,20 +176,30 @@ let crashState = {
     crashAt: 2
 };
 
+// Exponential crash curve like Bustabit
 function startCrashRound() {
     crashState.roundId += 1;
     crashState.status = 'running';
     crashState.multiplier = 1;
     crashState.bets = {};
+
+    // Provably fair but for demo, keep this as before
     crashState.crashAt = 1 + Math.pow(Math.random(), 2) * 4;
+
     crashCollection.insertOne({
         roundId: crashState.roundId,
         crashAt: crashState.crashAt,
         bets: [],
         created: new Date()
     });
+
+    // Use exponential curve for smooth, slow start and faster later (Bustabit-like)
+    let startTime = Date.now();
     let interval = setInterval(async () => {
-        crashState.multiplier += 0.01 + crashState.multiplier * 0.02;
+        let elapsed = (Date.now() - startTime) / 1000; // seconds
+        // 0.06 is a good curve, similar to bustabit, tweak if you want
+        crashState.multiplier = Math.floor(100 * Math.exp(0.06 * elapsed)) / 100;
+
         if (crashState.multiplier >= crashState.crashAt) {
             crashState.status = 'crashed';
             await crashCollection.updateOne(
@@ -199,7 +209,7 @@ function startCrashRound() {
             setTimeout(startCrashRound, 4000);
             clearInterval(interval);
         }
-    }, 100);
+    }, 50); // update every 50ms for smooth effect
 }
 setTimeout(startCrashRound, 2000);
 
