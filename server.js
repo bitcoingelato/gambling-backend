@@ -348,6 +348,7 @@ async function startCrashRound() {
             
             // Set timer for next round
             crashState.nextRoundTime = Date.now() + 10000; // 10 seconds delay
+            crashState.status = 'waiting';
             
             // Start countdown for next round
             setTimeout(startCrashRound, 10000);
@@ -700,10 +701,10 @@ app.get('/api/history/:game', authenticateToken, async (req, res) => {
 
     let query, project;
     if (game === "crash") {
-        query = { "bets.username": req.user.username };
+        query = {};  // Get all crash rounds for everyone to see
         project = { roundId: 1, crashAt: 1, bets: 1, created: 1, ended: 1, seedHash: 1, seed: 1 };
     } else {
-        query = { username: req.user.username };
+        query = { username: req.user.username };  // Only get user's own bets for other games
         project = { _id: 0 };
     }
 
