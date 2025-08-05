@@ -220,10 +220,16 @@
     // ======= CONFIG =======
     const API = "https://desolate-shore-72677-e0fe07c2f233.herokuapp.com/api";
     // ======================
-    let authToken = '', user = '', crashPoll = null, placedBet = null, crashRoundId = 0;
-    let coinflipChoice = null;
-    let hcaptchaLoginToken = "", hcaptchaSignupToken = "";
+  let authToken = '', user = '', crashPoll = null, placedBet = null, crashRoundId = 0;
+let coinflipChoice = null;
+let hcaptchaLoginToken = "", hcaptchaSignupToken = "";
 
+// On load: restore auth if present
+if (localStorage.getItem('authToken') && localStorage.getItem('user')) {
+  authToken = localStorage.getItem('authToken');
+  user = localStorage.getItem('user');
+  afterLogin();
+}
     // hCaptcha callback
     window.onLoginHCaptcha = function(token) { hcaptchaLoginToken = token; };
     window.onSignupHCaptcha = function(token) { hcaptchaSignupToken = token; };
