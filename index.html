@@ -247,9 +247,9 @@
       <input class="input" id="loginUser" placeholder="Username">
       <input class="input" id="loginPass" type="password" placeholder="Password">
       <div class="captcha-wrap">
-        <div id="h-captcha-login"></div>
+        <div class="h-captcha" data-sitekey="b1e64024-155e-43da-a5e6-9b56729c337e"></div>
       </div>
-      <button class="game-btn" id="loginBtn" onclick="login()">Login</button>
+      <button class="game-btn" id="loginBtn">Login</button>
       <p style="text-align:center;">No account? <a href="#" id="showSignup" style="color:#ffc107;">Sign Up</a></p>
       <div class="err" id="loginErr"></div>
     </div>
@@ -258,9 +258,9 @@
       <input class="input" id="signupEmail" type="email" placeholder="Email">
       <input class="input" id="signupPass" type="password" placeholder="Password">
       <div class="captcha-wrap">
-        <div id="h-captcha-signup"></div>
+        <div class="h-captcha" data-sitekey="b1e64024-155e-43da-a5e6-9b56729c337e"></div>
       </div>
-      <button class="game-btn" id="signupBtn" onclick="signup()">Sign Up (Fun Mode)</button>
+      <button class="game-btn" id="signupBtn">Sign Up (Fun Mode)</button>
       <p style="text-align:center;">Already have an account? <a href="#" id="showLogin" style="color:#ffc107;">Login</a></p>
       <div class="err" id="signupErr"></div>
     </div>
@@ -270,21 +270,21 @@
   <div class="container hidden" id="mainPage">
     <div id="userBox">
       Welcome, <b id="userName"></b>!
-      <button id="logoutBtn" onclick="logout()">Logout</button>
+      <button id="logoutBtn">Logout</button>
     </div>
     <div id="balanceBox">
       Fun Mode Balance: <span id="balance">0.00</span>
     </div>
-    <button class="game-btn" id="btnCrash" onclick="showCrashSection()">Crash</button>
-    <button class="game-btn" id="btnCoinflip" onclick="showCoinflipSection()">Coinflip</button>
-    <button class="game-btn" id="btnRoulette" onclick="showRouletteSection()">Roulette</button>
-    <button class="game-btn" id="btn3cp" onclick="show3CPSection()">3 Card Poker</button>
-    <button class="game-btn" id="btnSettings" onclick="showSettingsSection()" style="background: #444; color: #ffc107;">Account Settings</button>
+    <button class="game-btn" id="btnCrash">Crash</button>
+    <button class="game-btn" id="btnCoinflip">Coinflip</button>
+    <button class="game-btn" id="btnRoulette">Roulette</button>
+    <button class="game-btn" id="btn3cp">3 Card Poker</button>
+    <button class="game-btn" id="btnSettings" style="background: #444; color: #ffc107;">Account Settings</button>
   </div>
 
   <!-- CRASH -->
   <div class="container hidden" id="crashSection">
-    <button onclick="backToMenu()" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
+    <button id="backFromCrash" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
     <h2>Crash (Fun Mode)</h2>
     <div class="section">
       <!-- New crash game UI -->
@@ -297,9 +297,9 @@
       <div id="crashTimer" style="text-align:center; color:#ffc107; font-size:1.2em; margin: 10px 0;">Next round in <span id="countdown">9</span>s</div>
       <div class="bet-row">
         <input id="crashBetAmount" type="number" step="0.01" min="0.01" value="1.00">
-        <button id="crashBetBtn" onclick="placeCrashBet()">Place Bet</button>
-        <button id="crashCancelBtn" onclick="cancelCrashBet()" disabled>Cancel Bet</button>
-        <button id="crashCashoutBtn" onclick="crashCashout()" disabled>Cash Out</button>
+        <button id="crashBetBtn">Place Bet</button>
+        <button id="crashCancelBtn" disabled>Cancel Bet</button>
+        <button id="crashCashoutBtn" disabled>Cash Out</button>
       </div>
       <div id="crashMsg" class="err"></div>
       
@@ -313,7 +313,7 @@
     <!-- Provably fair section -->
     <div style="margin-top: 20px; padding: 10px; background: #333; border-radius: 5px;">
       <h3>Provably Fair</h3>
-      <button id="verifyFairnessBtn" onclick="verifyCrashFairness()">Verify Fairness</button>
+      <button id="verifyFairnessBtn">Verify Fairness</button>
     </div>
     
     <div id="crashHistoryDiv">
@@ -332,14 +332,14 @@
 
   <!-- COINFLIP -->
   <div class="container hidden" id="coinflipSection">
-    <button onclick="backToMenu()" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
+    <button id="backFromCoinflip" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
     <h2>Coinflip</h2>
     <div class="section">
       <div class="bet-row flex">
         <input id="coinflipBetAmount" type="number" step="0.01" min="0.01" value="1.00">
-        <button class="coin-btn" id="btnHeads" onclick="selectCoinflipSide('heads')">H</button>
-        <button class="coin-btn" id="btnTails" onclick="selectCoinflipSide('tails')">T</button>
-        <button id="coinflipBetBtn" onclick="flipCoin()">Flip</button>
+        <button class="coin-btn" id="btnHeads">H</button>
+        <button class="coin-btn" id="btnTails">T</button>
+        <button id="coinflipBetBtn">Flip</button>
       </div>
       <div id="coinflipMsg" class="err"></div>
       <div id="coinflipResult">Waiting for flip...</div>
@@ -348,14 +348,14 @@
 
   <!-- ROULETTE -->
   <div class="container hidden" id="rouletteSection">
-    <button onclick="backToMenu()" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
+    <button id="backFromRoulette" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
     <h2>Roulette</h2>
     <div class="section">
       <div class="bet-row flex">
         <input id="rouletteBetAmount" type="number" step="0.01" min="0.01" value="1.00">
-        <button class="roul-btn red" id="btnRed" onclick="rouletteBet('red')">Red</button>
-        <button class="roul-btn black" id="btnBlack" onclick="rouletteBet('black')">Black</button>
-        <button class="roul-btn green" id="btnGreen" onclick="rouletteBet('green')">Green</button>
+        <button class="roul-btn red" id="btnRed">Red</button>
+        <button class="roul-btn black" id="btnBlack">Black</button>
+        <button class="roul-btn green" id="btnGreen">Green</button>
       </div>
       <div class="roulette-wrapper">
         <div class="roulette-pointer"></div>
@@ -368,18 +368,18 @@
 
   <!-- 3 CARD POKER -->
   <div class="container hidden" id="threecpSection">
-    <button onclick="backToMenu()" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
+    <button id="backFrom3CP" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
     <h2>3 Card Poker</h2>
     <div class="section">
       <div class="bet-row">
         <input id="threecpBetAmount" type="number" step="0.01" min="0.01" value="1.00">
-        <button id="threecpAnteBtn" onclick="place3CPAnte()">Ante</button>
+        <button id="threecpAnteBtn">Ante</button>
       </div>
       <div id="threecpMsg" class="err"></div>
       <div id="threecpPlayer"></div>
       <div id="threecpDecisionBtns" class="hidden">
-        <button id="threecpPlayBtn" onclick="play3CP()">Play (Up Ante)</button>
-        <button id="threecpFoldBtn" onclick="fold3CP()">Fold</button>
+        <button id="threecpPlayBtn">Play (Up Ante)</button>
+        <button id="threecpFoldBtn">Fold</button>
       </div>
       <div id="threecpDealer"></div>
       <div id="threecpResult">Waiting for bet...</div>
@@ -388,17 +388,17 @@
 
   <!-- ACCOUNT SETTINGS -->
   <div class="container hidden" id="settingsSection">
-    <button onclick="backToMenu()" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
+    <button id="backFromSettings" style="float:right;margin-top:-10px;background:#222;color:#ffc107;border:none;font-size:1em;">&larr; Back</button>
     <h2>Account Settings</h2>
     <div id="settingsMsg" class="err"></div>
-    <form id="formChangePassword" onsubmit="changePassword(event)">
+    <form id="formChangePassword">
       <label>Change Password</label>
       <input id="currentPassword" type="password" placeholder="Current Password" required>
       <input id="newPassword" type="password" placeholder="New Password" required>
       <input id="confirmNewPassword" type="password" placeholder="Confirm New Password" required>
       <button type="submit" class="game-btn settings-btn">Change Password</button>
     </form>
-    <form id="formChangeEmail" onsubmit="changeEmail(event)">
+    <form id="formChangeEmail">
       <label>Change Email</label>
       <input id="currentPassword2" type="password" placeholder="Current Password" required>
       <input id="newEmail" type="email" placeholder="New Email" required>
@@ -416,7 +416,7 @@
         <p>Hash: <span id="verifyHash"></span></p>
         <p>Crash Point: <span id="verifyCrashPoint"></span></p>
       </div>
-      <button id="closeVerifyBtn" onclick="document.getElementById('verifyModal').classList.add('hidden')">Close</button>
+      <button id="closeVerifyBtn">Close</button>
     </div>
   </div>
 
@@ -435,10 +435,6 @@
     let currentCrashMultiplier = 1.00;
     let userBalance = 0; // Track user balance
     
-    // Captcha instances
-    let loginCaptcha = null;
-    let signupCaptcha = null;
-    
     // Debug log function
     function log(msg) {
       console.log(msg);
@@ -452,10 +448,17 @@
     
     // ---------- INITIALIZATION ----------
     document.addEventListener('DOMContentLoaded', function() {
-      // Initialize captchas
-      initCaptchas();
+      log("DOM loaded, initializing...");
+      
+      // Check for existing session
+      checkSession();
       
       // Set up event listeners
+      setupEventListeners();
+    });
+
+    function setupEventListeners() {
+      // Auth section
       document.getElementById('showSignup').addEventListener('click', function(e) {
         e.preventDefault();
         document.getElementById('loginBox').classList.add('hidden');
@@ -468,36 +471,58 @@
         document.getElementById('signupBox').classList.add('hidden');
       });
       
-      // Check for existing session
-      checkSession();
-    });
-    
-    // Initialize captchas
-    function initCaptchas() {
-      log("Initializing captchas");
+      document.getElementById('loginBtn').addEventListener('click', login);
+      document.getElementById('signupBtn').addEventListener('click', signup);
+      document.getElementById('logoutBtn').addEventListener('click', logout);
       
-      // Wait for hCaptcha to load
-      if (typeof hcaptcha === 'undefined') {
-        setTimeout(initCaptchas, 500);
-        return;
-      }
+      // Game sections
+      document.getElementById('btnCrash').addEventListener('click', showCrashSection);
+      document.getElementById('btnCoinflip').addEventListener('click', showCoinflipSection);
+      document.getElementById('btnRoulette').addEventListener('click', showRouletteSection);
+      document.getElementById('btn3cp').addEventListener('click', show3CPSection);
+      document.getElementById('btnSettings').addEventListener('click', showSettingsSection);
       
-      try {
-        loginCaptcha = hcaptcha.render('h-captcha-login', {
-          sitekey: 'b1e64024-155e-43da-a5e6-9b56729c337e',
-          theme: 'dark'
-        });
-        
-        signupCaptcha = hcaptcha.render('h-captcha-signup', {
-          sitekey: 'b1e64024-155e-43da-a5e6-9b56729c337e',
-          theme: 'dark'
-        });
-        
-        log("Captchas initialized successfully");
-      } catch (e) {
-        log("Error initializing captchas: " + e);
-        setTimeout(initCaptchas, 1000);
-      }
+      // Back buttons
+      document.getElementById('backFromCrash').addEventListener('click', backToMenu);
+      document.getElementById('backFromCoinflip').addEventListener('click', backToMenu);
+      document.getElementById('backFromRoulette').addEventListener('click', backToMenu);
+      document.getElementById('backFrom3CP').addEventListener('click', backToMenu);
+      document.getElementById('backFromSettings').addEventListener('click', backToMenu);
+      
+      // Crash game
+      document.getElementById('crashBetBtn').addEventListener('click', placeCrashBet);
+      document.getElementById('crashCancelBtn').addEventListener('click', cancelCrashBet);
+      document.getElementById('crashCashoutBtn').addEventListener('click', crashCashout);
+      document.getElementById('verifyFairnessBtn').addEventListener('click', verifyCrashFairness);
+      document.getElementById('closeVerifyBtn').addEventListener('click', function() {
+        document.getElementById('verifyModal').classList.add('hidden');
+      });
+      
+      // Coinflip
+      document.getElementById('btnHeads').addEventListener('click', function() { selectCoinflipSide('heads'); });
+      document.getElementById('btnTails').addEventListener('click', function() { selectCoinflipSide('tails'); });
+      document.getElementById('coinflipBetBtn').addEventListener('click', flipCoin);
+      
+      // Roulette
+      document.getElementById('btnRed').addEventListener('click', function() { rouletteBet('red'); });
+      document.getElementById('btnBlack').addEventListener('click', function() { rouletteBet('black'); });
+      document.getElementById('btnGreen').addEventListener('click', function() { rouletteBet('green'); });
+      
+      // 3CP
+      document.getElementById('threecpAnteBtn').addEventListener('click', place3CPAnte);
+      document.getElementById('threecpPlayBtn').addEventListener('click', play3CP);
+      document.getElementById('threecpFoldBtn').addEventListener('click', fold3CP);
+      
+      // Settings
+      document.getElementById('formChangePassword').addEventListener('submit', function(e) {
+        e.preventDefault();
+        changePassword();
+      });
+      
+      document.getElementById('formChangeEmail').addEventListener('submit', function(e) {
+        e.preventDefault();
+        changeEmail();
+      });
     }
 
     // ---------- UTILITY FUNCTIONS ----------    
@@ -536,7 +561,6 @@
       user = localStorage.getItem('user');
       
       if (authToken && user) {
-        log("Found saved session for: " + user);
         validateToken(authToken).then(valid => {
           if (valid) {
             afterLogin();
@@ -579,9 +603,10 @@
         return;
       }
       
+      // Get captcha response
       let captchaToken = '';
       try {
-        captchaToken = hcaptcha.getResponse(loginCaptcha);
+        captchaToken = hcaptcha.getResponse();
         log("Captcha token: " + (captchaToken ? "received" : "missing"));
       } catch (e) {
         log("Captcha error: " + e);
@@ -598,7 +623,6 @@
       loginBtn.textContent = 'Logging in...';
       
       try {
-        log("Sending login request");
         const res = await fetch(`${API}/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -621,7 +645,7 @@
         } else {
           document.getElementById('loginErr').textContent = data.message || 'Login failed.';
           try {
-            hcaptcha.reset(loginCaptcha);
+            hcaptcha.reset();
           } catch (e) {
             log("Captcha reset error: " + e);
           }
@@ -649,9 +673,26 @@
         return;
       }
       
+      // Get captcha response
       let captchaToken = '';
       try {
-        captchaToken = hcaptcha.getResponse(signupCaptcha);
+        // Try to get the captcha response from signup captcha
+        const captchas = document.querySelectorAll('.h-captcha');
+        if (captchas.length > 1) {
+          const signupCaptchaElement = document.querySelector('#signupBox .h-captcha');
+          if (signupCaptchaElement) {
+            const widgetId = signupCaptchaElement.getAttribute('data-hcaptcha-widget-id');
+            if (widgetId) {
+              captchaToken = hcaptcha.getResponse(widgetId);
+            }
+          }
+        }
+        
+        // Fallback to any captcha response
+        if (!captchaToken) {
+          captchaToken = hcaptcha.getResponse();
+        }
+        
         log("Signup captcha token: " + (captchaToken ? "received" : "missing"));
       } catch (e) {
         log("Signup captcha error: " + e);
@@ -668,7 +709,6 @@
       signupBtn.textContent = 'Signing up...';
       
       try {
-        log("Sending signup request");
         const res = await fetch(`${API}/signup`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -712,7 +752,7 @@
         } else {
           document.getElementById('signupErr').textContent = data.message || 'Signup failed.';
           try {
-            hcaptcha.reset(signupCaptcha);
+            hcaptcha.reset();
           } catch (e) {
             log("Signup captcha reset error: " + e);
           }
@@ -753,8 +793,7 @@
       
       // Reset hCaptcha
       try {
-        if (loginCaptcha) hcaptcha.reset(loginCaptcha);
-        if (signupCaptcha) hcaptcha.reset(signupCaptcha);
+        hcaptcha.reset();
       } catch (e) {
         log("Captcha reset error during logout: " + e);
       }
@@ -844,9 +883,7 @@
     }
 
     // ---------- ACCOUNT SETTINGS ----------
-    async function changePassword(e) {
-      if (e) e.preventDefault();
-      
+    async function changePassword() {
       const currentPassword = document.getElementById('currentPassword').value;
       const newPassword = document.getElementById('newPassword').value;
       const confirmNewPassword = document.getElementById('confirmNewPassword').value;
@@ -887,9 +924,7 @@
       }
     }
 
-    async function changeEmail(e) {
-      if (e) e.preventDefault();
-      
+    async function changeEmail() {
       const currentPassword = document.getElementById('currentPassword2').value;
       const newEmail = document.getElementById('newEmail').value;
       const settingsMsg = document.getElementById('settingsMsg');
@@ -1470,47 +1505,4 @@
         // Immediately deduct from balance
         updateBalance(userBalance - amt);
         
-        const res = await fetch(`${API}/roulette/bet`, {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + authToken,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            amount: amt,
-            color
-          })
-        });
-        
-        const data = await res.json();
-        
-        if (data.success) {
-          rouletteSpinning = true;
-          document.getElementById('rouletteResult').textContent = "Spinning...";
-          
-          // Get result after a delay
-          setTimeout(async function() {
-            try {
-              const stateRes = await fetch(`${API}/roulette/state`, {
-                headers: { 'Authorization': 'Bearer ' + authToken }
-              });
-              
-              const stateData = await stateRes.json();
-              
-              if (stateData.success && stateData.round) {
-                // Animate wheel
-                const resultColor = stateData.round.color;
-                const angle = Math.floor(Math.random() * 360) + 720; // 2+ full rotations
-                document.getElementById('rouletteWheel').style.transform = `rotate(${angle}deg)`;
-                
-                setTimeout(function() {
-                  const win = (color === resultColor);
-                  const payout = win ? (color === "green" ? amt * 14 : amt * 2) : 0;
-                  document.getElementById('rouletteResult').textContent = 
-                    `Result: ${resultColor}. ${win ? "You win!" : "You lose."}`;
-                  
-                  if (win && payout > 0) {
-                    document.getElementById('rouletteResult').textContent += ` Won ${payout.toFixed(2)}`;
-                    updateBalance(userBalance + payout);
-                  }
-                  
+        const res = await fetch(`${API}/roulette/bet`,
