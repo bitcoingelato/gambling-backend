@@ -242,30 +242,110 @@ app.post('/api/coinflip/bet', authenticateToken, async (req, res) => {
     const user = await usersCollection.findOne({ username: req.user.username });
     if (!user) return res.json({ success: false, message: "User not found." });
     if (user.balance < amount) return res.json({ success: false, message: "Insufficient balance." });
+
+    // Deduct bet amount up front
+    await usersCollection.updateOne({ username: user.username }, { $inc: { balance: -amount } });
+
     const result = Math.random() < 0.5 ? "heads" : "tails";
     const win = (choice === result);
-    let payout = win ? amount : 0;
-    await usersCollection.updateOne({ username: user.username }, { $inc: { balance: payout - amount } });
+    let payout = win ? amount * 2 : 0;
+    if (win) {
+        await usersCollection.updateOne({ username: user.username }, { $inc: { balance: payout } });
+    }
     await coinflipCollection.insertOne({ username: user.username, amount, choice, result, win, payout, created: new Date() });
     res.json({ success: true, result, win, payout });
 });
 
 // ------ ROULETTE -------
-const rouletteColors = Array(15).fill("black").concat(Array(15).fill("red")).concat(["green"]);
+// Automated roulette round system
+let rouletteRound = {
+    roundId: 1,
+    status: 'waiting', // 'waiting', 'spinning', 'result'
+    bets: [],
+    result: null,
+    color: null,
+    spinTime: null
+};
+const rouletteColorsPool = Array(15).fill("black").concat(Array(15).fill("red")).concat(["green"]);
+let rouletteBets = [];
+let rouletteTimer = null;
+
+function startRouletteRound() {
+    rouletteRound = {
+        roundId: rouletteRound.roundId + 1,
+        status: 'waiting',
+        bets: [],
+        result: null,
+        color: null,
+        spinTime: Date.now() + 9000
+    };
+    rouletteBets = [];
+    setTimeout(() => {
+        spinRoulette();
+    }, 9000);
+}
+
+function spinRoulette() {
+    rouletteRound.status = 'spinning';
+    setTimeout(() => {
+        // pick result
+        const spin = Math.floor(Math.random() * rouletteColorsPool.length);
+        const resultColor = rouletteColorsPool[spin];
+        rouletteRound.result = spin;
+        rouletteRound.color = resultColor;
+        rouletteRound.status = 'result';
+
+        // Pay out all bets
+        for (const bet of rouletteBets) {
+            let payout = 0;
+            if (bet.color === resultColor) payout = bet.color === "green" ? bet.amount * 14 : bet.amount * 2;
+            if (payout > 0) {
+                usersCollection.updateOne({ username: bet.username }, { $inc: { balance: payout } });
+            }
+            rouletteCollection.insertOne({
+                username: bet.username,
+                amount: bet.amount,
+                color: bet.color,
+                result: resultColor,
+                payout,
+                roundId: rouletteRound.roundId,
+                created: new Date()
+            });
+        }
+        setTimeout(startRouletteRound, 2000); // 2s show result, then next round
+    }, 1000); // 1s spinning animation
+}
+
+// Start the first round
+setTimeout(startRouletteRound, 2000);
+
+app.get('/api/roulette/state', authenticateToken, (req, res) => {
+    res.json({ success: true, round: {
+        roundId: rouletteRound.roundId,
+        status: rouletteRound.status,
+        timeLeft: Math.max(0, Math.floor((rouletteRound.spinTime - Date.now())/1000)),
+        color: rouletteRound.color,
+        result: rouletteRound.result
+    }});
+});
+
 app.post('/api/roulette/bet', authenticateToken, async (req, res) => {
     const { amount, color } = req.body;
     if (!amount || amount <= 0 || !["red", "black", "green"].includes(color)) return res.json({ success: false, message: "Invalid bet." });
     const user = await usersCollection.findOne({ username: req.user.username });
     if (!user) return res.json({ success: false, message: "User not found." });
     if (user.balance < amount) return res.json({ success: false, message: "Insufficient balance." });
+
+    // Deduct bet up front
     await usersCollection.updateOne({ username: user.username }, { $inc: { balance: -amount } });
-    const spin = Math.floor(Math.random() * rouletteColors.length);
-    const result = rouletteColors[spin];
-    let payout = 0;
-    if (color === result) payout = color === "green" ? amount * 14 : amount * 2;
-    await usersCollection.updateOne({ username: user.username }, { $inc: { balance: payout } });
-    await rouletteCollection.insertOne({ username: user.username, amount, color, result, payout, created: new Date() });
-    res.json({ success: true, result, payout });
+
+    // Store bet for this round
+    rouletteBets.push({
+        username: user.username,
+        amount,
+        color
+    });
+    res.json({ success: true, roundId: rouletteRound.roundId });
 });
 
 // ------ 3 Card Poker -------
@@ -284,7 +364,10 @@ app.post('/api/3cp/bet', authenticateToken, async (req, res) => {
     const user = await usersCollection.findOne({ username: req.user.username });
     if (!user) return res.json({ success: false, message: "User not found." });
     if (user.balance < amount) return res.json({ success: false, message: "Insufficient balance." });
+
+    // Deduct bet up front
     await usersCollection.updateOne({ username: user.username }, { $inc: { balance: -amount } });
+
     let d = deck();
     const player = drawHand(d), dealer = drawHand(d);
     const playerValue = Math.max(...player.map(c => "23456789TJQKA".indexOf(c[0])));
