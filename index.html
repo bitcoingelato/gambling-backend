@@ -222,30 +222,6 @@
       color: #222;
       font-weight: bold;
     }
-    
-    /* Loading spinner */
-    .spinner {
-      display: inline-block;
-      width: 20px;
-      height: 20px;
-      border: 3px solid rgba(255,255,255,.3);
-      border-radius: 50%;
-      border-top-color: #ffc107;
-      animation: spin 1s ease-in-out infinite;
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-    
-    /* Debug panel */
-    #debugPanel {
-      margin-top: 20px;
-      padding: 8px;
-      background: #333;
-      border-radius: 5px;
-      font-size: 0.8rem;
-      display: none;
-    }
   </style>
 </head>
 <body>
@@ -255,7 +231,9 @@
     <div id="loginBox">
       <input class="input" id="loginUser" placeholder="Username">
       <input class="input" id="loginPass" type="password" placeholder="Password">
-      <div class="captcha-wrap" id="loginCaptchaContainer"></div>
+      <div class="captcha-wrap">
+        <div class="h-captcha" data-sitekey="b1e64024-155e-43da-a5e6-9b56729c337e"></div>
+      </div>
       <button class="game-btn" id="loginBtn">Login</button>
       <p style="text-align:center;">No account? <a href="#" id="showSignup" style="color:#ffc107;">Sign Up</a></p>
       <div class="err" id="loginErr"></div>
@@ -264,7 +242,9 @@
       <input class="input" id="signupUser" placeholder="Username">
       <input class="input" id="signupEmail" type="email" placeholder="Email">
       <input class="input" id="signupPass" type="password" placeholder="Password">
-      <div class="captcha-wrap" id="signupCaptchaContainer"></div>
+      <div class="captcha-wrap">
+        <div class="h-captcha" data-sitekey="b1e64024-155e-43da-a5e6-9b56729c337e"></div>
+      </div>
       <button class="game-btn" id="signupBtn">Sign Up (Fun Mode)</button>
       <p style="text-align:center;">Already have an account? <a href="#" id="showLogin" style="color:#ffc107;">Login</a></p>
       <div class="err" id="signupErr"></div>
@@ -424,18 +404,11 @@
       <button id="closeVerifyBtn">Close</button>
     </div>
   </div>
-  
-  <!-- Debug Panel (hidden by default) -->
-  <div id="debugPanel">
-    <h4>Debug Info</h4>
-    <div id="debugOutput"></div>
-  </div>
 
   <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
   <script>
     // ======= CONFIG =======
     const API = "https://desolate-shore-72677-e0fe07c2f233.herokuapp.com/api";
-    const DEBUG = true; // Set to true to enable debug messages
     // ======================
     let authToken = '', user = '', crashPoll = null, placedBet = null, crashRoundId = 0;
     let coinflipChoice = null;
@@ -447,65 +420,19 @@
     let currentCrashMultiplier = 1.00;
     let userBalance = 0; // Track user balance
     
-    // hCaptcha widgets
-    let loginCaptchaWidget = null;
-    let signupCaptchaWidget = null;
-    
     // ---------- INITIALIZATION ----------
     document.addEventListener('DOMContentLoaded', function() {
-      debug("DOM loaded, initializing...");
+      console.log("DOM loaded, initializing...");
       
       // Set up event listeners
       setupEventListeners();
       
-      // Try to initialize hCaptcha
-      initCaptchas();
-      
       // Check for existing session
       checkSession();
-      
-      // Enable debug panel if in debug mode
-      if (DEBUG) {
-        document.getElementById('debugPanel').style.display = 'block';
-      }
     });
-    
-    function initCaptchas() {
-      debug("Initializing captchas...");
-      // We'll wait for hCaptcha to load and then initialize the widgets
-      if (typeof hcaptcha !== 'undefined') {
-        renderCaptchas();
-      } else {
-        // Wait a bit and try again
-        setTimeout(initCaptchas, 500);
-      }
-    }
-    
-    function renderCaptchas() {
-      debug("Rendering captchas...");
-      try {
-        // Create login captcha
-        loginCaptchaWidget = hcaptcha.render('loginCaptchaContainer', {
-          sitekey: 'b1e64024-155e-43da-a5e6-9b56729c337e',
-          theme: 'dark'
-        });
-        
-        // Create signup captcha
-        signupCaptchaWidget = hcaptcha.render('signupCaptchaContainer', {
-          sitekey: 'b1e64024-155e-43da-a5e6-9b56729c337e',
-          theme: 'dark'
-        });
-        
-        debug("Captchas rendered successfully");
-      } catch (e) {
-        debug("Error rendering captchas: " + e.message);
-        // Try again in a moment
-        setTimeout(renderCaptchas, 1000);
-      }
-    }
 
     function setupEventListeners() {
-      debug("Setting up event listeners");
+      console.log("Setting up event listeners");
       
       // Auth listeners
       document.getElementById('showSignup').addEventListener('click', function(e) {
@@ -564,35 +491,15 @@
         e.preventDefault();
         changeEmail();
       });
-      
-      debug("Event listeners set up successfully");
     }
 
-    // ---------- UTILITY FUNCTIONS ----------
-    function debug(message) {
-      if (DEBUG) {
-        console.log(`[${new Date().toISOString()}] ${message}`);
-        const debugOutput = document.getElementById('debugOutput');
-        if (debugOutput) {
-          const log = document.createElement('div');
-          log.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
-          debugOutput.appendChild(log);
-          // Keep only last 10 messages
-          while (debugOutput.childNodes.length > 10) {
-            debugOutput.removeChild(debugOutput.firstChild);
-          }
-        }
-      }
-    }
-    
+    // ---------- UTILITY FUNCTIONS ----------    
     function show(id) { 
       document.getElementById(id).classList.remove('hidden'); 
-      debug(`Showing element: ${id}`);
     }
     
     function hide(id) { 
       document.getElementById(id).classList.add('hidden'); 
-      debug(`Hiding element: ${id}`);
     }
     
     function setText(id, text) { 
@@ -602,8 +509,6 @@
     // Update balance with animation
     function updateBalance(newBalance) {
       const balanceElement = document.getElementById('balance');
-      
-      debug(`Updating balance from ${userBalance} to ${newBalance}`);
       
       // Animate the balance change
       balanceElement.classList.add('balance-update');
@@ -620,78 +525,72 @@
 
     // Check for existing session
     function checkSession() {
-      debug("Checking for existing session");
+      console.log("Checking for existing session");
       
       authToken = localStorage.getItem('authToken');
       user = localStorage.getItem('user');
       
       if (authToken && user) {
-        debug(`Found saved session for user: ${user}`);
+        console.log(`Found saved session for user: ${user}`);
         validateToken(authToken).then(valid => {
           if (valid) {
             afterLogin();
           } else {
-            debug("Saved token is invalid, clearing session");
+            console.log("Saved token is invalid, clearing session");
             logout(false);
           }
         });
       } else {
-        debug("No saved session found");
+        console.log("No saved session found");
       }
     }
     
     // Validate the token with the server
     async function validateToken(token) {
       try {
-        debug("Validating token with server");
+        console.log("Validating token with server");
         const res = await fetch(`${API}/balance`, {
           headers: { 'Authorization': 'Bearer ' + token }
         });
         
         const data = await res.json();
         if (data.success) {
-          debug("Token validation successful");
+          console.log("Token validation successful");
           return true;
         } else {
-          debug("Token validation failed: " + (data.message || "Unknown error"));
+          console.log("Token validation failed");
           return false;
         }
       } catch (err) {
-        debug("Error validating token: " + err.message);
+        console.log("Error validating token:", err);
         return false;
       }
     }
 
     // ---------- AUTH FUNCTIONS ----------
     async function login() {
-      debug("Login attempt started");
+      console.log("Login attempt started");
       
       const username = document.getElementById('loginUser').value.trim();
       const password = document.getElementById('loginPass').value;
       let captchaResponse = '';
       
       try {
-        if (loginCaptchaWidget !== null) {
-          captchaResponse = hcaptcha.getResponse(loginCaptchaWidget);
-          debug("Got captcha response: " + (captchaResponse ? "yes" : "no"));
-        } else {
-          debug("Login captcha widget not initialized");
-        }
+        captchaResponse = hcaptcha.getResponse();
+        console.log("Got captcha response:", captchaResponse ? "yes" : "no");
       } catch (e) {
-        debug("hCaptcha error: " + e.message);
+        console.error("hCaptcha error:", e);
       }
       
       document.getElementById('loginErr').textContent = '';
       
       if (!username || !password) {
         document.getElementById('loginErr').textContent = 'Enter both username and password.';
-        debug("Login failed: missing username or password");
         return;
       }
       
       if (!captchaResponse) {
         document.getElementById('loginErr').textContent = 'Please complete the captcha.';
-        debug("Login failed: missing captcha");
         return;
       }
       
@@ -699,10 +598,10 @@
       const loginBtn = document.getElementById('loginBtn');
       const originalText = loginBtn.textContent;
       loginBtn.disabled = true;
-      loginBtn.innerHTML = '<span class="spinner"></span> Logging in...';
+      loginBtn.textContent = 'Logging in...';
       
       try {
-        debug("Sending login request to server");
+        console.log("Sending login request to server");
         const res = await fetch(`${API}/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -714,7 +613,7 @@
         });
         
         const data = await res.json();
-        debug("Login response received: " + (data.success ? "success" : "failure"));
+        console.log("Login response received:", data);
         
         if (data.success) {
           authToken = data.token;
@@ -724,18 +623,15 @@
           afterLogin();
         } else {
           document.getElementById('loginErr').textContent = data.message || 'Login failed.';
-          debug("Login error: " + (data.message || "Unknown error"));
           try {
-            if (loginCaptchaWidget !== null) {
-              hcaptcha.reset(loginCaptchaWidget);
-            }
+            hcaptcha.reset();
           } catch (e) {
-            debug("Couldn't reset captcha: " + e.message);
+            console.warn("Couldn't reset captcha:", e);
           }
         }
       } catch (err) {
         document.getElementById('loginErr').textContent = 'Network error. Try again.';
-        debug("Login network error: " + err.message);
+        console.error('Login error:', err);
       } finally {
         // Restore button state
         loginBtn.disabled = false;
@@ -744,7 +640,7 @@
     }
 
     async function signup() {
-      debug("Signup attempt started");
+      console.log("Signup attempt started");
       
       const username = document.getElementById('signupUser').value.trim();
       const email = document.getElementById('signupEmail').value.trim();
@@ -752,27 +648,25 @@
       let captchaResponse = '';
       
       try {
-        if (signupCaptchaWidget !== null) {
-          captchaResponse = hcaptcha.getResponse(signupCaptchaWidget);
-          debug("Got captcha response: " + (captchaResponse ? "yes" : "no"));
-        } else {
-          debug("Signup captcha widget not initialized");
+        // Use the signup captcha
+        captchaResponse = hcaptcha.getResponse(document.querySelector('#signupBox .h-captcha').getAttribute('data-hcaptcha-widget-id'));
+        if (!captchaResponse) {
+          captchaResponse = hcaptcha.getResponse(); // Fallback
         }
+        console.log("Got captcha response:", captchaResponse ? "yes" : "no");
       } catch (e) {
-        debug("hCaptcha error: " + e.message);
+        console.error("hCaptcha error:", e);
       }
       
       document.getElementById('signupErr').textContent = '';
       
       if (!username || !email || !password) {
         document.getElementById('signupErr').textContent = 'All fields are required.';
-        debug("Signup failed: missing fields");
         return;
       }
       
       if (!captchaResponse) {
         document.getElementById('signupErr').textContent = 'Please complete the captcha.';
-        debug("Signup failed: missing captcha");
         return;
       }
       
@@ -780,10 +674,10 @@
       const signupBtn = document.getElementById('signupBtn');
       const originalText = signupBtn.textContent;
       signupBtn.disabled = true;
-      signupBtn.innerHTML = '<span class="spinner"></span> Signing up...';
+      signupBtn.textContent = 'Signing up...';
       
       try {
-        debug("Sending signup request to server");
+        console.log("Sending signup request to server");
         const res = await fetch(`${API}/signup`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -796,11 +690,11 @@
         });
         
         const data = await res.json();
-        debug("Signup response received: " + (data.success ? "success" : "failure"));
+        console.log("Signup response received:", data);
         
         if (data.success) {
           // Try to log in automatically
-          debug("Signup successful, attempting automatic login");
+          console.log("Signup successful, attempting automatic login");
           const loginRes = await fetch(`${API}/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -824,22 +718,18 @@
             document.getElementById('loginBox').classList.remove('hidden');
             document.getElementById('signupBox').classList.add('hidden');
             document.getElementById('loginUser').value = username;
-            debug("Auto-login failed after signup: " + (loginData.message || "Unknown error"));
           }
         } else {
           document.getElementById('signupErr').textContent = data.message || 'Signup failed.';
-          debug("Signup error: " + (data.message || "Unknown error"));
           try {
-            if (signupCaptchaWidget !== null) {
-              hcaptcha.reset(signupCaptchaWidget);
-            }
+            hcaptcha.reset();
           } catch (e) {
-            debug("Couldn't reset captcha: " + e.message);
+            console.warn("Couldn't reset captcha:", e);
           }
         }
       } catch (err) {
         document.getElementById('signupErr').textContent = 'Network error. Try again.';
-        debug("Signup network error: " + err.message);
+        console.error('Signup error:', err);
       } finally {
         // Restore button state
         signupBtn.disabled = false;
@@ -848,7 +738,7 @@
     }
 
     function afterLogin() {
-      debug("After login: transitioning to main page");
+      console.log("After login: transitioning to main page");
       hide('loginPage');
       show('mainPage');
       setText('userName', user);
@@ -856,7 +746,7 @@
     }
 
     function logout(redirect = true) {
-      debug("Logging out" + (redirect ? " and redirecting to login" : ""));
+      console.log("Logging out");
       authToken = '';
       user = '';
       localStorage.removeItem('authToken');
@@ -876,14 +766,9 @@
       
       // Reset hCaptcha
       try {
-        if (loginCaptchaWidget !== null) {
-          hcaptcha.reset(loginCaptchaWidget);
-        }
-        if (signupCaptchaWidget !== null) {
-          hcaptcha.reset(signupCaptchaWidget);
-        }
+        hcaptcha.reset();
       } catch (e) {
-        debug("Couldn't reset captcha during logout: " + e.message);
+        console.warn("Couldn't reset captcha during logout:", e);
       }
     }
 
@@ -951,12 +836,8 @@
 
     // ---------- BALANCE ----------
     async function refreshBalance() {
-      if (!authToken) {
-        debug("No auth token, skipping balance refresh");
-        return;
-      }
+      if (!authToken) return;
       
-      debug("Refreshing balance");
       try {
         const res = await fetch(`${API}/balance`, {
           headers: { 'Authorization': 'Bearer ' + authToken }
@@ -966,16 +847,11 @@
         
         if (data.success) {
           updateBalance(data.balance);
-          debug(`Balance updated to ${data.balance}`);
-        } else {
-          debug("Failed to refresh balance: " + (data.message || "Unknown error"));
-          if (data.message === "Invalid token") {
-            // Token expired or invalid
-            logout();
-          }
+        } else if (data.message === "Invalid token") {
+          logout();
         }
       } catch (err) {
-        debug("Balance refresh error: " + err.message);
+        console.error('Balance error:', err);
       }
     }
 
@@ -985,8 +861,6 @@
       const newPassword = document.getElementById('newPassword').value;
       const confirmNewPassword = document.getElementById('confirmNewPassword').value;
       const settingsMsg = document.getElementById('settingsMsg');
-      
-      debug("Change password attempt");
       
       if (!currentPassword || !newPassword || !confirmNewPassword) {
         settingsMsg.textContent = 'All fields required.';
@@ -1017,13 +891,9 @@
         
         if (data.success) {
           document.getElementById('formChangePassword').reset();
-          debug("Password changed successfully");
-        } else {
-          debug("Password change failed: " + (data.message || "Unknown error"));
         }
       } catch (err) {
         settingsMsg.textContent = 'Network error. Try again.';
-        debug("Password change network error: " + err.message);
       }
     }
 
@@ -1031,8 +901,6 @@
       const currentPassword = document.getElementById('currentPassword2').value;
       const newEmail = document.getElementById('newEmail').value;
       const settingsMsg = document.getElementById('settingsMsg');
-      
-      debug("Change email attempt");
       
       if (!currentPassword || !newEmail) {
         settingsMsg.textContent = 'All fields required.';
@@ -1058,19 +926,14 @@
         
         if (data.success) {
           document.getElementById('formChangeEmail').reset();
-          debug("Email changed successfully");
-        } else {
-          debug("Email change failed: " + (data.message || "Unknown error"));
         }
       } catch (err) {
         settingsMsg.textContent = 'Network error. Try again.';
-        debug("Email change network error: " + err.message);
       }
     }
 
     // ---------- CRASH GAME ----------
     function startCrashPoll() {
-      debug("Starting crash polling");
       placedBet = null;
       crashRoundId = 0;
       getCrashHistory();
@@ -1081,7 +944,6 @@
     }
     
     function stopCrashPoll() {
-      debug("Stopping crash polling");
       if (crashPoll) clearInterval(crashPoll);
       crashPoll = null;
       if (countdownInterval) clearInterval(countdownInterval);
@@ -1091,7 +953,6 @@
     }
 
     function resetCrashGame() {
-      debug("Resetting crash game");
       if (crashAnimationInterval) {
         clearInterval(crashAnimationInterval);
         crashAnimationInterval = null;
@@ -1128,7 +989,6 @@
         if (data.success && data.round) {
           // Check for new round
           if (crashRoundId !== data.round.roundId) {
-            debug(`New crash round detected: ${data.round.roundId}`);
             crashRoundId = data.round.roundId;
             if (data.round.seedHash) {
               crashSeeds[crashRoundId] = {
@@ -1195,12 +1055,10 @@
             document.getElementById('crashTimer').textContent = 'Game crashed!';
           }
         } else if (data.message === "Invalid token") {
-          // Token expired or invalid
-          debug("Invalid token detected during crash state fetch");
           logout();
         }
       } catch (err) {
-        debug("Error fetching crash state: " + err.message);
+        console.error('Error fetching crash state:', err);
       }
     }
     
@@ -1211,7 +1069,6 @@
       }
       
       let timeLeft = Math.max(0, parseInt(seconds) || 9);
-      debug(`Starting countdown from ${timeLeft} seconds`);
       
       document.getElementById('countdown').textContent = timeLeft;
       document.getElementById('crashTimer').textContent = `Next round in ${timeLeft}s`;
@@ -1222,7 +1079,6 @@
           clearInterval(countdownInterval);
           countdownInterval = null;
           document.getElementById('crashTimer').textContent = 'Round starting...';
-          debug("Countdown finished");
         } else {
           document.getElementById('countdown').textContent = timeLeft;
           document.getElementById('crashTimer').textContent = `Next round in ${timeLeft}s`;
@@ -1247,8 +1103,6 @@
       crashRocket.style.opacity = 1;
       
       if (crashAnimationInterval) clearInterval(crashAnimationInterval);
-      
-      debug("Starting crash animation");
       
       // Update position immediately once
       updateCrashPosition(crashLine, crashRocket, graphHeight, graphWidth, currentCrashMultiplier);
@@ -1287,7 +1141,6 @@
       crashExplosion.classList.add('visible');
       
       crashRocket.style.opacity = 0;
-      debug("Showing crash explosion animation");
     }
     
     function updateRecentCrashes() {
@@ -1302,8 +1155,6 @@
         item.textContent = mult.toFixed(2) + 'x';
         container.appendChild(item);
       });
-      
-      debug(`Updated recent crashes display with ${lastCrashMultipliers.length} items`);
     }
     
     function updateCrashControls() {
@@ -1316,14 +1167,11 @@
       betBtn.disabled = crashGameState !== 'waiting';
       cancelBtn.disabled = crashGameState !== 'waiting' || placedBet === null;
       cashoutBtn.disabled = crashGameState !== 'running' || placedBet === null;
-      
-      debug(`Updated crash controls - game state: ${crashGameState}, has bet: ${placedBet !== null}`);
     }
     
     async function getCrashHistory() {
       if (!authToken) return;
       
-      debug("Fetching crash history");
       try {
         const res = await fetch(`${API}/history/crash`, {
           headers: { 'Authorization': 'Bearer ' + authToken }
@@ -1334,7 +1182,6 @@
         tbody.innerHTML = '';
         
         if (data.success && Array.isArray(data.history)) {
-          debug(`Received ${data.history.length} crash history items`);
           lastCrashMultipliers = data.history.slice(0, 10).map(round => round.crashAt || 1);
           updateRecentCrashes();
           
@@ -1356,43 +1203,33 @@
             `;
             tbody.appendChild(tr);
           });
-        } else if (data.message === "Invalid token") {
-          // Token expired or invalid
-          debug("Invalid token detected during crash history fetch");
-          logout();
-        } else {
-          debug("Failed to fetch crash history: " + (data.message || "Unknown error"));
         }
       } catch (err) {
-        debug("Crash history fetch error: " + err.message);
+        console.error('Crash history error:', err);
       }
     }
     
     async function placeCrashBet() {
       if (crashGameState !== 'waiting') {
         document.getElementById('crashMsg').textContent = "Wait for next round to place bet";
-        debug("Cannot place crash bet - not in waiting state");
         return;
       }
       
       const amt = parseFloat(document.getElementById('crashBetAmount').value);
       if (!amt || amt <= 0) { 
         document.getElementById('crashMsg').textContent = "Enter a bet > 0"; 
-        debug("Invalid crash bet amount");
         return;
       }
       
       // Check if bet amount exceeds balance
       if (amt > userBalance) {
         document.getElementById('crashMsg').textContent = "Insufficient balance"; 
-        debug("Insufficient balance for crash bet");
         return;
       }
       
       document.getElementById('crashMsg').textContent = "";
       
       try {
-        debug(`Placing crash bet of ${amt}`);
         const res = await fetch(`${API}/crash/bet`, {
           method: 'POST',
           headers: {
@@ -1409,31 +1246,24 @@
           // Immediately deduct from balance
           updateBalance(userBalance - amt);
           updateCrashControls();
-          debug("Crash bet placed successfully");
         } else {
           document.getElementById('crashMsg').textContent = data.message || "Bet failed";
-          debug("Crash bet failed: " + (data.message || "Unknown error"));
-          if (data.message === "Invalid token") {
-            logout();
-          }
         }
       } catch (err) {
         document.getElementById('crashMsg').textContent = "Error connecting to server";
-        debug("Crash bet error: " + err.message);
+        console.error('Crash bet error:', err);
       }
     }
     
     async function cancelCrashBet() {
       if (crashGameState !== 'waiting' || !placedBet) {
         document.getElementById('crashMsg').textContent = "Cannot cancel bet at this time";
-        debug("Cannot cancel crash bet - not in waiting state or no bet placed");
         return;
       }
       
       document.getElementById('crashMsg').textContent = "";
       
       try {
-        debug("Canceling crash bet");
         const res = await fetch(`${API}/crash/cancel-bet`, {
           method: 'POST',
           headers: {
@@ -1453,31 +1283,24 @@
           placedBet = null;
           document.getElementById('crashMsg').textContent = "Bet cancelled successfully";
           updateCrashControls();
-          debug("Crash bet canceled successfully");
         } else {
           document.getElementById('crashMsg').textContent = data.message || "Failed to cancel bet";
-          debug("Crash bet cancellation failed: " + (data.message || "Unknown error"));
-          if (data.message === "Invalid token") {
-            logout();
-          }
         }
       } catch (err) {
         document.getElementById('crashMsg').textContent = "Error connecting to server";
-        debug("Crash bet cancellation error: " + err.message);
+        console.error('Cancel crash bet error:', err);
       }
     }
     
     async function crashCashout() {
       if (crashGameState !== 'running' || !placedBet) {
         document.getElementById('crashMsg').textContent = "Cannot cash out at this time";
-        debug("Cannot cash out - not running or no bet placed");
         return;
       }
       
       document.getElementById('crashMsg').textContent = "";
       
       try {
-        debug("Cashing out crash bet");
         const res = await fetch(`${API}/crash/cashout`, {
           method: 'POST',
           headers: {
@@ -1498,18 +1321,186 @@
             `Cashed out at ${data.multiplier.toFixed(2)}x, won ${data.payout.toFixed(2)}!`;
           placedBet = null;
           updateCrashControls();
-          debug(`Cashed out successfully at ${data.multiplier}x for ${data.payout}`);
         } else {
           document.getElementById('crashMsg').textContent = data.message || "Cash out failed";
-          debug("Crash cashout failed: " + (data.message || "Unknown error"));
-          if (data.message === "Invalid token") {
-            logout();
-          }
         }
       } catch (err) {
         document.getElementById('crashMsg').textContent = "Error connecting to server";
-        debug("Crash cashout error: " + err.message);
+        console.error('Crash cashout error:', err);
       }
     }
     
-    function ve
+    function verifyCrashFairness() {
+      if (!crashRoundId || !crashSeeds[crashRoundId]) {
+        alert('No round data available to verify');
+        return;
+      }
+      
+      verifyCrashRound(crashRoundId);
+    }
+    
+    function verifyCrashRound(roundId) {
+      if (!crashSeeds[roundId]) {
+        alert('No data available for this round');
+        return;
+      }
+      
+      const roundData = crashSeeds[roundId];
+      const serverSeedHash = roundData.serverSeedHash || 'Not available';
+      const serverSeed = roundData.serverSeed || 'Not revealed yet';
+      
+      document.getElementById('verifyRound').textContent = roundId;
+      document.getElementById('verifyServerSeed').textContent = serverSeed;
+      document.getElementById('verifyHash').textContent = serverSeedHash;
+      
+      const historyRows = document.querySelectorAll('#crashHistory tbody tr');
+      let crashPoint = 'Unknown';
+      for (let row of historyRows) {
+        if (row.cells[0].textContent == roundId) {
+          crashPoint = row.cells[1].textContent;
+          break;
+        }
+      }
+      
+      document.getElementById('verifyCrashPoint').textContent = crashPoint;
+      document.getElementById('verifyModal').classList.remove('hidden');
+    }
+    
+    // Make function available globally
+    window.verifyCrashRound = verifyCrashRound;
+
+    // ---------- COINFLIP GAME ----------
+    function resetCoinflip() {
+      coinflipChoice = null;
+      document.getElementById('btnHeads').classList.remove('selected');
+      document.getElementById('btnTails').classList.remove('selected');
+      document.getElementById('coinflipBetAmount').value = "1.00";
+      document.getElementById('coinflipResult').textContent = "Waiting for flip...";
+      document.getElementById('coinflipMsg').textContent = "";
+    }
+    
+    function selectCoinflipSide(side) {
+      coinflipChoice = side;
+      if (side === 'heads') {
+        document.getElementById('btnHeads').classList.add('selected');
+        document.getElementById('btnTails').classList.remove('selected');
+      } else {
+        document.getElementById('btnHeads').classList.remove('selected');
+        document.getElementById('btnTails').classList.add('selected');
+      }
+    }
+    
+    async function flipCoin() {
+      document.getElementById('coinflipMsg').textContent = "";
+      const amt = parseFloat(document.getElementById('coinflipBetAmount').value);
+      if (!amt || amt <= 0) { 
+        document.getElementById('coinflipMsg').textContent = "Enter a bet > 0"; 
+        return; 
+      }
+      if (!coinflipChoice) { 
+        document.getElementById('coinflipMsg').textContent = "Pick heads or tails"; 
+        return; 
+      }
+      
+      // Check if bet amount exceeds balance
+      if (amt > userBalance) {
+        document.getElementById('coinflipMsg').textContent = "Insufficient balance"; 
+        return;
+      }
+      
+      try {
+        // Immediately deduct from balance
+        updateBalance(userBalance - amt);
+        
+        const res = await fetch(`${API}/coinflip/bet`, {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + authToken,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            amount: amt,
+            choice: coinflipChoice
+          })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+          document.getElementById('coinflipResult').textContent = 
+            `Result: ${data.result}. ${data.win ? "You win!" : "You lose."}`;
+          
+          // If won, add winnings to balance
+          if (data.win && data.payout) {
+            document.getElementById('coinflipResult').textContent += ` Won ${data.payout.toFixed(2)}`;
+            updateBalance(userBalance + data.payout);
+          }
+        } else {
+          document.getElementById('coinflipMsg').textContent = data.message || "Bet failed";
+          // Restore balance on error
+          updateBalance(userBalance + amt);
+        }
+      } catch (err) {
+        document.getElementById('coinflipMsg').textContent = "Network error. Please try again.";
+        console.error('Coinflip error:', err);
+        // Restore balance on error
+        updateBalance(userBalance + amt);
+      }
+    }
+
+    // ---------- ROULETTE GAME ----------
+    let rouletteSpinning = false;
+    
+    function resetRoulette() {
+      document.getElementById('rouletteBetAmount').value = "1.00";
+      document.getElementById('rouletteMsg').textContent = "";
+      document.getElementById('rouletteResult').textContent = "Waiting for spin...";
+      document.getElementById('rouletteWheel').style.transform = 'rotate(0deg)';
+      rouletteSpinning = false;
+    }
+    
+    async function rouletteBet(color) {
+      if (rouletteSpinning) return;
+      document.getElementById('rouletteMsg').textContent = "";
+      const amt = parseFloat(document.getElementById('rouletteBetAmount').value);
+      if (!amt || amt <= 0) { 
+        document.getElementById('rouletteMsg').textContent = "Enter a bet > 0"; 
+        return; 
+      }
+      
+      // Check if bet amount exceeds balance
+      if (amt > userBalance) {
+        document.getElementById('rouletteMsg').textContent = "Insufficient balance"; 
+        return;
+      }
+      
+      try {
+        // Immediately deduct from balance
+        updateBalance(userBalance - amt);
+        
+        const res = await fetch(`${API}/roulette/bet`, {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + authToken,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            amount: amt,
+            color
+          })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+          rouletteSpinning = true;
+          document.getElementById('rouletteResult').textContent = "Spinning...";
+          
+          // Get result after a delay
+          setTimeout(async function() {
+            try {
+              const stateRes = await fetch(`${API}/roulette/state`, {
+                headers: { 'Authorization': 'Bearer ' + authToken }
+              });
+              
+              const stateData = await state
