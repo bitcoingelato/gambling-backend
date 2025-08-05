@@ -1,3 +1,6 @@
+I'll address the 3CP network error, add card animations, and fix the balance updates. Here's the updated index.html:
+
+```html name=index.html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -29,10 +32,37 @@
       background: #fff; color: #111;
       box-shadow: 0 2px 6px #0008;
       position: relative;
+      transition: all 0.3s ease;
+      transform-origin: center bottom;
     }
     .card.red { color: #d32f2f; }
     .card.black { color: #111; }
     .card.back { background: #222; color: #ffc107; border-style: dashed; }
+    
+    /* Card Animation */
+    @keyframes dealCard {
+      0% { 
+        transform: translateY(20px) scale(0.1);
+        opacity: 0;
+      }
+      100% { 
+        transform: translateY(0) scale(1);
+        opacity: 1; 
+      }
+    }
+    .card-animated {
+      animation: dealCard 0.3s ease-out forwards;
+    }
+    .card-animated-delay-1 {
+      animation-delay: 0.1s;
+    }
+    .card-animated-delay-2 {
+      animation-delay: 0.2s;
+    }
+    .card-animated-delay-3 {
+      animation-delay: 0.3s;
+    }
+    
     /* Roulette */
     .roulette-wrapper { display: flex; flex-direction: column; align-items: center; }
     .roulette-wheel {
@@ -169,6 +199,32 @@
       max-width: 90%;
       width: 400px;
     }
+    
+    /* Balance animation */
+    @keyframes balancePulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); color: #ffc107; }
+      100% { transform: scale(1); }
+    }
+    .balance-update {
+      animation: balancePulse 0.5s ease-in-out;
+    }
+    
+    /* Coin selection */
+    .coin-btn {
+      padding: 8px 15px;
+      border: none;
+      border-radius: 5px;
+      background: #444;
+      color: white;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .coin-btn.selected {
+      background: #ffc107;
+      color: #222;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -205,7 +261,7 @@
       <button id="logoutBtn">Logout</button>
     </div>
     <div id="balanceBox">
-      Fun Mode Balance: <span id="balance"></span>
+      Fun Mode Balance: <span id="balance">0.00</span>
     </div>
     <button class="game-btn" id="btnCrash">Crash</button>
     <button class="game-btn" id="btnCoinflip">Coinflip</button>
@@ -365,6 +421,7 @@
     let crashAnimationInterval = null;
     let lastCrashMultipliers = []; // Store last crash multipliers
     let currentCrashMultiplier = 1.00;
+    let userBalance = 0; // Track user balance
     
     // ---------- INITIALIZATION ----------
     document.addEventListener('DOMContentLoaded', function() {
@@ -423,6 +480,23 @@
     function hide(id) { document.getElementById(id).classList.add('hidden'); }
     function setText(id, text) { document.getElementById(id).textContent = text; }
 
+    // Update balance with animation
+    function updateBalance(newBalance) {
+      const balanceElement = document.getElementById('balance');
+      
+      // Animate the balance change
+      balanceElement.classList.add('balance-update');
+      
+      // Remove animation class after it completes
+      setTimeout(() => {
+        balanceElement.classList.remove('balance-update');
+      }, 500);
+      
+      // Update the balance value
+      userBalance = newBalance;
+      balanceElement.textContent = newBalance.toFixed(2);
+    }
+
     // Check for existing session
     function checkSession() {
       authToken = localStorage.getItem('authToken');
@@ -437,7 +511,14 @@
     async function login() {
       const username = document.getElementById('loginUser').value.trim();
       const password = document.getElementById('loginPass').value;
-      const captchaResponse = hcaptcha.getResponse();
+      let captchaResponse = '';
+      
+      try {
+        captchaResponse = hcaptcha.getResponse();
+      } catch (e) {
+        console.error("hCaptcha error:", e);
+      }
+      
       document.getElementById('loginErr').textContent = '';
       
       if (!username || !password) {
@@ -471,7 +552,11 @@
           afterLogin();
         } else {
           document.getElementById('loginErr').textContent = data.message || 'Login failed.';
-          hcaptcha.reset();
+          try {
+            hcaptcha.reset();
+          } catch (e) {
+            console.warn("Couldn't reset captcha:", e);
+          }
         }
       } catch (err) {
         document.getElementById('loginErr').textContent = 'Network error. Try again.';
@@ -483,7 +568,20 @@
       const username = document.getElementById('signupUser').value.trim();
       const email = document.getElementById('signupEmail').value.trim();
       const password = document.getElementById('signupPass').value;
-      const captchaResponse = hcaptcha.getResponse(document.querySelector('#signupBox .h-captcha').dataset.hcaptchaWidgetId);
+      let captchaResponse = '';
+      
+      try {
+        // Use the right widget for signup
+        const signupCaptchaWidget = document.querySelector('#signupBox .h-captcha');
+        if (signupCaptchaWidget && signupCaptchaWidget.dataset.hcaptchaWidgetId) {
+          captchaResponse = hcaptcha.getResponse(signupCaptchaWidget.dataset.hcaptchaWidgetId);
+        } else {
+          captchaResponse = hcaptcha.getResponse();
+        }
+      } catch (e) {
+        console.error("hCaptcha error:", e);
+      }
+      
       document.getElementById('signupErr').textContent = '';
       
       if (!username || !email || !password) {
@@ -538,7 +636,16 @@
           }
         } else {
           document.getElementById('signupErr').textContent = data.message || 'Signup failed.';
-          hcaptcha.reset(document.querySelector('#signupBox .h-captcha').dataset.hcaptchaWidgetId);
+          try {
+            const signupCaptchaWidget = document.querySelector('#signupBox .h-captcha');
+            if (signupCaptchaWidget && signupCaptchaWidget.dataset.hcaptchaWidgetId) {
+              hcaptcha.reset(signupCaptchaWidget.dataset.hcaptchaWidgetId);
+            } else {
+              hcaptcha.reset();
+            }
+          } catch (e) {
+            console.warn("Couldn't reset captcha:", e);
+          }
         }
       } catch (err) {
         document.getElementById('signupErr').textContent = 'Network error. Try again.';
@@ -568,8 +675,12 @@
       stopCrashPoll();
       
       // Reset hCaptcha
-      if (window.hcaptcha) {
-        hcaptcha.reset();
+      try {
+        if (window.hcaptcha) {
+          hcaptcha.reset();
+        }
+      } catch (e) {
+        console.warn("Couldn't reset captcha:", e);
       }
     }
 
@@ -647,7 +758,7 @@
         const data = await res.json();
         
         if (data.success) {
-          setText('balance', data.balance.toFixed(2));
+          updateBalance(data.balance);
         }
       } catch (err) {
         console.error('Balance error:', err);
@@ -1021,6 +1132,12 @@
         return;
       }
       
+      // Check if bet amount exceeds balance
+      if (amt > userBalance) {
+        document.getElementById('crashMsg').textContent = "Insufficient balance"; 
+        return;
+      }
+      
       document.getElementById('crashMsg').textContent = "";
       
       try {
@@ -1037,7 +1154,8 @@
         
         if (data.success) {
           placedBet = { amount: amt, cashedOut: false };
-          refreshBalance();
+          // Immediately deduct from balance
+          updateBalance(userBalance - amt);
           updateCrashControls();
         } else {
           document.getElementById('crashMsg').textContent = data.message || "Bet failed";
@@ -1068,9 +1186,13 @@
         const data = await res.json();
         
         if (data.success) {
+          // Add the bet amount back to balance
+          if (placedBet && placedBet.amount) {
+            updateBalance(userBalance + placedBet.amount);
+          }
+          
           placedBet = null;
           document.getElementById('crashMsg').textContent = "Bet cancelled successfully";
-          refreshBalance();
           updateCrashControls();
         } else {
           document.getElementById('crashMsg').textContent = data.message || "Failed to cancel bet";
@@ -1101,10 +1223,14 @@
         const data = await res.json();
         
         if (data.success) {
+          // Update the balance with payout
+          if (data.payout) {
+            updateBalance(userBalance + data.payout);
+          }
+          
           document.getElementById('crashMsg').textContent = 
             `Cashed out at ${data.multiplier.toFixed(2)}x, won ${data.payout.toFixed(2)}!`;
           placedBet = null;
-          refreshBalance();
           updateCrashControls();
         } else {
           document.getElementById('crashMsg').textContent = data.message || "Cash out failed";
@@ -1167,11 +1293,11 @@
     function selectCoinflipSide(side) {
       coinflipChoice = side;
       if (side === 'heads') {
-        document.getElementById('btnHeads').style.background = '#ffc107';
-        document.getElementById('btnTails').style.background = '#444';
+        document.getElementById('btnHeads').classList.add('selected');
+        document.getElementById('btnTails').classList.remove('selected');
       } else {
-        document.getElementById('btnHeads').style.background = '#444';
-        document.getElementById('btnTails').style.background = '#ffc107';
+        document.getElementById('btnHeads').classList.remove('selected');
+        document.getElementById('btnTails').classList.add('selected');
       }
     }
     
@@ -1187,7 +1313,16 @@
         return; 
       }
       
+      // Check if bet amount exceeds balance
+      if (amt > userBalance) {
+        document.getElementById('coinflipMsg').textContent = "Insufficient balance"; 
+        return;
+      }
+      
       try {
+        // Immediately deduct from balance
+        updateBalance(userBalance - amt);
+        
         const res = await fetch(`${API}/coinflip/bet`, {
           method: 'POST',
           headers: {
@@ -1204,14 +1339,23 @@
         
         if (data.success) {
           document.getElementById('coinflipResult').textContent = 
-            `Result: ${data.result}. ${data.win ? "You win!" : "You lose."} ${data.win ? ("Won " + data.payout) : ""}`;
-          refreshBalance();
+            `Result: ${data.result}. ${data.win ? "You win!" : "You lose."}`;
+          
+          // If won, add winnings to balance
+          if (data.win && data.payout) {
+            document.getElementById('coinflipResult').textContent += ` Won ${data.payout.toFixed(2)}`;
+            updateBalance(userBalance + data.payout);
+          }
         } else {
           document.getElementById('coinflipMsg').textContent = data.message || "Bet failed";
+          // Restore balance on error
+          updateBalance(userBalance + amt);
         }
       } catch (err) {
         document.getElementById('coinflipMsg').textContent = "Network error. Please try again.";
         console.error('Coinflip error:', err);
+        // Restore balance on error
+        updateBalance(userBalance + amt);
       }
     }
 
@@ -1235,7 +1379,16 @@
         return; 
       }
       
+      // Check if bet amount exceeds balance
+      if (amt > userBalance) {
+        document.getElementById('rouletteMsg').textContent = "Insufficient balance"; 
+        return;
+      }
+      
       try {
+        // Immediately deduct from balance
+        updateBalance(userBalance - amt);
+        
         const res = await fetch(`${API}/roulette/bet`, {
           method: 'POST',
           headers: {
@@ -1253,7 +1406,6 @@
         if (data.success) {
           rouletteSpinning = true;
           document.getElementById('rouletteResult').textContent = "Spinning...";
-          refreshBalance();
           
           // Get result after a delay
           setTimeout(async function() {
@@ -1274,26 +1426,39 @@
                   const win = (color === resultColor);
                   const payout = win ? (color === "green" ? amt * 14 : amt * 2) : 0;
                   document.getElementById('rouletteResult').textContent = 
-                    `Result: ${resultColor}. ${win ? "You win!" : "You lose."} ${payout > 0 ? ("Won " + payout.toFixed(2)) : ""}`;
+                    `Result: ${resultColor}. ${win ? "You win!" : "You lose."}`;
+                  
+                  if (win && payout > 0) {
+                    document.getElementById('rouletteResult').textContent += ` Won ${payout.toFixed(2)}`;
+                    updateBalance(userBalance + payout);
+                  }
+                  
                   rouletteSpinning = false;
-                  refreshBalance();
                 }, 3000);
               } else {
                 document.getElementById('rouletteResult').textContent = "Error getting result";
                 rouletteSpinning = false;
+                // Restore balance on error
+                updateBalance(userBalance + amt);
               }
             } catch (err) {
               document.getElementById('rouletteResult').textContent = "Network error. Please try again.";
               rouletteSpinning = false;
               console.error('Roulette state error:', err);
+              // Restore balance on error
+              updateBalance(userBalance + amt);
             }
           }, 1000);
         } else {
           document.getElementById('rouletteMsg').textContent = data.message || "Bet failed";
+          // Restore balance on error
+          updateBalance(userBalance + amt);
         }
       } catch (err) {
         document.getElementById('rouletteMsg').textContent = "Network error. Please try again.";
         console.error('Roulette bet error:', err);
+        // Restore balance on error
+        updateBalance(userBalance + amt);
       }
     }
 
@@ -1306,120 +1471,6 @@
     };
     let threecpGame = null;
     
-    function renderCard(card) {
+    function renderCard(card, index) {
       const rank = card[0], suit = card[1];
-      const color = (suit === 'H' || suit === 'D') ? 'red' : 'black';
-      return `<div class="card ${color}">${rankToUnicode[rank] || rank}${suitToUnicode[suit] || ''}</div>`;
-    }
-    
-    function renderCardBack() {
-      return `<div class="card back">🂠</div>`;
-    }
-    
-    function resetThreecp() {
-      threecpGame = null;
-      document.getElementById('threecpBetAmount').value = "1.00";
-      document.getElementById('threecpMsg').textContent = "";
-      document.getElementById('threecpResult').textContent = "Waiting for bet...";
-      document.getElementById('threecpPlayer').innerHTML = "";
-      document.getElementById('threecpDealer').innerHTML = "";
-      document.getElementById('threecpDecisionBtns').classList.add('hidden');
-    }
-    
-    async function place3CPAnte() {
-      document.getElementById('threecpMsg').textContent = "";
-      const amt = parseFloat(document.getElementById('threecpBetAmount').value);
-      if (!amt || amt <= 0) { 
-        document.getElementById('threecpMsg').textContent = "Enter a bet > 0"; 
-        return; 
-      }
-      
-      try {
-        const res = await fetch(`${API}/3cp/ante`, {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + authToken,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ amount: amt })
-        });
-        
-        const data = await res.json();
-        
-        if (data.success) {
-          threecpGame = { player: data.player, dealer: data.dealer };
-          
-          document.getElementById('threecpPlayer').innerHTML = "Your hand: <span class='card-row'>" +
-            data.player.map(renderCard).join('') + "</span>";
-          document.getElementById('threecpDealer').innerHTML = "Dealer: <span class='card-row'>" +
-            [renderCardBack(), renderCardBack(), renderCardBack()].join('') + "</span>";
-          
-          document.getElementById('threecpDecisionBtns').classList.remove('hidden');
-          document.getElementById('threecpResult').textContent = "Do you want to Play (up ante) or Fold?";
-          refreshBalance();
-        } else {
-          document.getElementById('threecpMsg').textContent = data.message || "Ante failed";
-        }
-      } catch (err) {
-        document.getElementById('threecpMsg').textContent = "Network error. Please try again.";
-        console.error('3CP ante error:', err);
-      }
-    }
-    
-    async function play3CP() {
-      try {
-        const res = await fetch(`${API}/3cp/play`, {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + authToken,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        const data = await res.json();
-        
-        if (data.success) {
-          document.getElementById('threecpDealer').innerHTML = "Dealer: <span class='card-row'>" +
-            data.dealer.map(renderCard).join('') + "</span>";
-          document.getElementById('threecpDecisionBtns').classList.add('hidden');
-          document.getElementById('threecpResult').textContent = 
-            data.win ? `You win! Payout: ${data.payout}` : "You lose.";
-          refreshBalance();
-        } else {
-          document.getElementById('threecpMsg').textContent = data.message || "Play failed";
-        }
-      } catch (err) {
-        document.getElementById('threecpMsg').textContent = "Network error. Please try again.";
-        console.error('3CP play error:', err);
-      }
-    }
-    
-    async function fold3CP() {
-      try {
-        const res = await fetch(`${API}/3cp/fold`, {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + authToken,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        const data = await res.json();
-        
-        if (data.success) {
-          document.getElementById('threecpDealer').innerHTML = "Dealer: <span class='card-row'>" +
-            data.dealer.map(renderCard).join('') + "</span>";
-          document.getElementById('threecpDecisionBtns').classList.add('hidden');
-          document.getElementById('threecpResult').textContent = "You folded. You lost your ante.";
-          refreshBalance();
-        } else {
-          document.getElementById('threecpMsg').textContent = data.message || "Fold failed";
-        }
-      } catch (err) {
-        document.getElementById('threecpMsg').textContent = "Network error. Please try again.";
-        console.error('3CP fold error:', err);
-      }
-    }
-  </script>
-</body>
-</html>
+      const color = (suit === 'H' || suit === 'D') ?
