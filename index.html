@@ -289,6 +289,8 @@
       const data = await res.json();
       if (data.success) {
         authToken = data.token; user = data.username;
+localStorage.setItem('authToken', authToken);
+localStorage.setItem('user', user);
         afterLogin();
       } else {
         document.getElementById('loginErr').textContent = data.message || "Login failed";
