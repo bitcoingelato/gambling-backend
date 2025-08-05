@@ -248,7 +248,7 @@ app.post('/api/coinflip/bet', authenticateToken, async (req, res) => {
 
     const result = Math.random() < 0.5 ? "heads" : "tails";
     const win = (choice === result);
-    let payout = win ? amount * 2 : 0; // <-- FIXED: payout is bet*2 if win, 0 if lose
+    let payout = win ? amount * 2 : 0;
     if (win) {
         await usersCollection.updateOne({ username: user.username }, { $inc: { balance: payout } });
     }
@@ -257,7 +257,6 @@ app.post('/api/coinflip/bet', authenticateToken, async (req, res) => {
 });
 
 // ------ ROULETTE -------
-// Automated roulette round system
 let rouletteRound = {
     roundId: 1,
     status: 'waiting', // 'waiting', 'spinning', 'result'
@@ -348,35 +347,74 @@ app.post('/api/roulette/bet', authenticateToken, async (req, res) => {
     res.json({ success: true, roundId: rouletteRound.roundId });
 });
 
-// ------ 3 Card Poker -------
-const deck = () => {
+// ------ 3 Card Poker (with bet-lock, ante/play/fold) -------
+let threecpPendingHands = {}; // { username: { ante, player, dealer } }
+function deck() {
     const suits = ['H','D','C','S'];
     const ranks = ['2','3','4','5','6','7','8','9','T','J','Q','K','A'];
     let d = [];
     for (let s of suits) for (let r of ranks) d.push(r+s);
+    for (let i = d.length - 1; i > 0; i--) {
+        let j = Math.floor(Math.random() * (i + 1));
+        [d[i], d[j]] = [d[j], d[i]];
+    }
     return d;
-};
-function drawHand(d) { for (let i=0,h=[];i<3;i++) h.push(d.splice(Math.floor(Math.random()*d.length),1)[0]); return h; }
+}
+function drawHand(d) { return [d.pop(), d.pop(), d.pop()]; }
 
-app.post('/api/3cp/bet', authenticateToken, async (req, res) => {
+// Place Ante, deal cards, lock until play/fold
+app.post('/api/3cp/ante', authenticateToken, async (req, res) => {
     const amount = parseFloat(req.body.amount);
-    if (!amount || amount <= 0) return res.json({ success: false, message: "Invalid bet." });
-    const user = await usersCollection.findOne({ username: req.user.username });
+    const username = req.user.username;
+    if (!amount || amount <= 0) return res.json({ success: false, message: "Invalid ante." });
+
+    if (threecpPendingHands[username]) {
+        return res.json({ success: false, message: "Finish your current hand first." });
+    }
+    const user = await usersCollection.findOne({ username });
     if (!user) return res.json({ success: false, message: "User not found." });
     if (user.balance < amount) return res.json({ success: false, message: "Insufficient balance." });
 
-    // Deduct bet up front
-    await usersCollection.updateOne({ username: user.username }, { $inc: { balance: -amount } });
-
+    await usersCollection.updateOne({ username }, { $inc: { balance: -amount } });
     let d = deck();
     const player = drawHand(d), dealer = drawHand(d);
-    const playerValue = Math.max(...player.map(c => "23456789TJQKA".indexOf(c[0])));
-    const dealerValue = Math.max(...dealer.map(c => "23456789TJQKA".indexOf(c[0])));
+    threecpPendingHands[username] = { ante: amount, player, dealer, state: 'decision' };
+    res.json({ success: true, player, dealer: ['??','??','??'], msg: "Hand dealt. Play or Fold?" });
+});
+
+// Play (up ante), resolve hand
+app.post('/api/3cp/play', authenticateToken, async (req, res) => {
+    const username = req.user.username;
+    let pending = threecpPendingHands[username];
+    if (!pending || pending.state !== 'decision') {
+        return res.json({ success: false, message: "No hand to play." });
+    }
+    const user = await usersCollection.findOne({ username });
+    if (!user) return res.json({ success: false, message: "User not found." });
+    if (user.balance < pending.ante) return res.json({ success: false, message: "Insufficient balance for play bet." });
+    await usersCollection.updateOne({ username }, { $inc: { balance: -pending.ante } });
+
+    const playerValue = Math.max(...pending.player.map(c => "23456789TJQKA".indexOf(c[0])));
+    const dealerValue = Math.max(...pending.dealer.map(c => "23456789TJQKA".indexOf(c[0])));
     let win = playerValue > dealerValue;
-    let payout = win ? amount * 2 : 0;
-    if (win) await usersCollection.updateOne({ username: user.username }, { $inc: { balance: payout } });
-    await pokerCollection.insertOne({ username: user.username, amount, player, dealer, win, payout, created: new Date() });
-    res.json({ success: true, player, dealer, win, payout });
+    let payout = win ? pending.ante * 4 : 0;
+    if (win) await usersCollection.updateOne({ username }, { $inc: { balance: payout } });
+
+    await pokerCollection.insertOne({ username, amount: pending.ante, player: pending.player, dealer: pending.dealer, win, payout, created: new Date() });
+    delete threecpPendingHands[username];
+    res.json({ success: true, player: pending.player, dealer: pending.dealer, win, payout });
+});
+
+// Fold, lose ante, clear hand
+app.post('/api/3cp/fold', authenticateToken, async (req, res) => {
+    const username = req.user.username;
+    let pending = threecpPendingHands[username];
+    if (!pending || pending.state !== 'decision') {
+        return res.json({ success: false, message: "No hand to fold." });
+    }
+    await pokerCollection.insertOne({ username, amount: pending.ante, player: pending.player, dealer: pending.dealer, win: false, payout: 0, created: new Date() });
+    delete threecpPendingHands[username];
+    res.json({ success: true, player: pending.player, dealer: pending.dealer, win: false, payout: 0, msg: "You folded. You lost your ante." });
 });
 
 // ------ BET HISTORY ------
