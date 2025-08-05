@@ -33,7 +33,7 @@ const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017";
 const DB_NAME = process.env.DB_NAME || "casino";
 const HCAPTCHA_SECRET = process.env.HCAPTCHA_SECRET || "b1e64024-155e-43da-a5e6-9b56729c337e";
 
-let db, usersCollection, crashCollection, coinflipCollection, rouletteCollection, pokerCollection;
+let db, usersCollection, crashCollection, coinflipCollection, rouletteCollection, pokerCollection, seedsCollection;
 let dbReady = false;
 MongoClient.connect(MONGODB_URI, { useUnifiedTopology: true }).then(client => {
     db = client.db(DB_NAME);
@@ -42,6 +42,7 @@ MongoClient.connect(MONGODB_URI, { useUnifiedTopology: true }).then(client => {
     coinflipCollection = db.collection('coinflip_games');
     rouletteCollection = db.collection('roulette_games');
     pokerCollection = db.collection('threecp_games');
+    seedsCollection = db.collection('provably_fair_seeds');
     dbReady = true;
     console.log("Connected to MongoDB");
 }).catch(err => {
@@ -67,6 +68,65 @@ function authenticateToken(req, res, next) {
         req.user = user;
         next();
     });
+}
+
+// ------ PROVABLY FAIR SEED MANAGEMENT ------
+async function generateServerSeed() {
+    const seed = crypto.randomBytes(32).toString('hex');
+    const hash = crypto.createHash('sha256').update(seed).digest('hex');
+    return { seed, hash };
+}
+
+async function getOrCreateUserSeeds(username) {
+    const seeds = await seedsCollection.findOne({ username });
+    if (seeds) return seeds;
+    
+    // Create new seeds for user
+    const { seed: crashSeed, hash: crashHash } = await generateServerSeed();
+    const { seed: nextCrashSeed, hash: nextCrashHash } = await generateServerSeed();
+    const { seed: coinflipSeed, hash: coinflipHash } = await generateServerSeed();
+    
+    const newSeeds = {
+        username,
+        crash: { currentSeed: crashSeed, currentHash: crashHash, nextSeed: nextCrashSeed, nextHash: nextCrashHash },
+        coinflip: { currentSeed: coinflipSeed, currentHash: coinflipHash },
+        created: new Date(),
+        lastRotated: new Date()
+    };
+    
+    await seedsCollection.insertOne(newSeeds);
+    return newSeeds;
+}
+
+// Rotate seeds after each game
+async function rotateUserSeeds(username, gameType) {
+    if (gameType === 'crash') {
+        const { seed: nextSeed, hash: nextHash } = await generateServerSeed();
+        await seedsCollection.updateOne(
+            { username },
+            { 
+                $set: {
+                    'crash.currentSeed': await seedsCollection.findOne({ username }).then(s => s.crash.nextSeed),
+                    'crash.currentHash': await seedsCollection.findOne({ username }).then(s => s.crash.nextHash),
+                    'crash.nextSeed': nextSeed,
+                    'crash.nextHash': nextHash,
+                    'lastRotated': new Date()
+                }
+            }
+        );
+    } else if (gameType === 'coinflip') {
+        const { seed: newSeed, hash: newHash } = await generateServerSeed();
+        await seedsCollection.updateOne(
+            { username },
+            { 
+                $set: {
+                    'coinflip.currentSeed': newSeed,
+                    'coinflip.currentHash': newHash,
+                    'lastRotated': new Date()
+                }
+            }
+        );
+    }
 }
 
 // ------ AUTH ------
@@ -97,6 +157,10 @@ app.post('/api/signup', async (req, res) => {
             emailVerified: false,
             created: new Date()
         });
+        
+        // Create initial seeds for the new user
+        await getOrCreateUserSeeds(username);
+        
         res.json({ success: true });
     } catch (e) {
         console.error("Signup error:", e);
@@ -122,6 +186,10 @@ app.post('/api/login', async (req, res) => {
         if (!user) return res.json({ success: false, message: "User not found" });
         if (!(await bcrypt.compare(password, user.password))) return res.json({ success: false, message: "Wrong password" });
         const token = jwt.sign({ username: user.username }, JWT_SECRET, { expiresIn: '7d' });
+        
+        // Get or create provably fair seeds for the user
+        await getOrCreateUserSeeds(username);
+        
         res.json({ success: true, username: user.username, token });
     } catch (e) {
         console.error("Login error:", e);
@@ -167,30 +235,94 @@ app.post('/api/change-email', authenticateToken, async (req, res) => {
     }
 });
 
+// ------ PROVABLY FAIR API ------
+app.get('/api/provably-fair/seeds', authenticateToken, async (req, res) => {
+    try {
+        const username = req.user.username;
+        const seeds = await seedsCollection.findOne({ username });
+        if (!seeds) {
+            const newSeeds = await getOrCreateUserSeeds(username);
+            return res.json({
+                success: true,
+                crash: {
+                    currentHash: newSeeds.crash.currentHash,
+                    nextHash: newSeeds.crash.nextHash
+                },
+                coinflip: {
+                    currentHash: newSeeds.coinflip.currentHash
+                }
+            });
+        }
+        
+        res.json({
+            success: true,
+            crash: {
+                currentHash: seeds.crash.currentHash,
+                nextHash: seeds.crash.nextHash
+            },
+            coinflip: {
+                currentHash: seeds.coinflip.currentHash
+            }
+        });
+    } catch (e) {
+        console.error("Seeds API error:", e);
+        res.json({ success: false, message: e.message });
+    }
+});
+
+app.post('/api/provably-fair/client-seed', authenticateToken, async (req, res) => {
+    try {
+        const { clientSeed } = req.body;
+        if (!clientSeed) return res.json({ success: false, message: "Client seed required" });
+        
+        await usersCollection.updateOne(
+            { username: req.user.username },
+            { $set: { clientSeed } }
+        );
+        
+        res.json({ success: true });
+    } catch (e) {
+        console.error("Client seed update error:", e);
+        res.json({ success: false, message: e.message });
+    }
+});
+
 // ------ CRASH GAME -------
 let crashState = {
     roundId: 1,
-    status: 'waiting',
+    status: 'waiting', // 'waiting', 'running', 'crashed'
     multiplier: 1,
     bets: {},
-    crashAt: 2
+    crashAt: 2,
+    nextRoundTime: Date.now() + 10000, // 10 seconds delay between rounds
+    revealedSeed: null,
+    seedHash: null
 };
 
 /**
  * Crash multiplier increases by exactly 0.01 every tick (20ms), using integer arithmetic for precision.
  */
-function startCrashRound() {
+async function startCrashRound() {
+    // Generate crash point using provably fair method
+    const { seed, hash } = await generateServerSeed();
+    const crashPoint = calculateCrashPoint(seed);
+    
     crashState.roundId += 1;
     crashState.status = 'running';
     crashState.multiplier = 1;
     crashState.bets = {};
-    crashState.crashAt = 1 + Math.pow(Math.random(), 2) * 4;
+    crashState.crashAt = crashPoint;
+    crashState.seedHash = hash;
+    crashState.revealedSeed = null;
 
-    crashCollection.insertOne({
+    // Store round info in database
+    await crashCollection.insertOne({
         roundId: crashState.roundId,
         crashAt: crashState.crashAt,
         bets: [],
-        created: new Date()
+        created: new Date(),
+        seedHash: hash,
+        seed: seed // Will be revealed after crash
     });
 
     // Use integer arithmetic to avoid floating point errors
@@ -201,46 +333,139 @@ function startCrashRound() {
 
         if (crashState.multiplier >= crashState.crashAt) {
             crashState.status = 'crashed';
+            crashState.revealedSeed = seed;
             await crashCollection.updateOne(
                 { roundId: crashState.roundId },
-                { $set: { crashAt: crashState.crashAt, ended: new Date(), bets: Object.values(crashState.bets) } }
+                { 
+                    $set: { 
+                        crashAt: crashState.crashAt, 
+                        ended: new Date(),
+                        bets: Object.values(crashState.bets),
+                        seed: seed // Reveal the seed after crash
+                    } 
+                }
             );
-            setTimeout(startCrashRound, 4000);
+            
+            // Set timer for next round
+            crashState.nextRoundTime = Date.now() + 10000; // 10 seconds delay
+            
+            // Start countdown for next round
+            setTimeout(startCrashRound, 10000);
+            
             clearInterval(interval);
         }
     }, 20);
 }
-setTimeout(startCrashRound, 2000);
+
+// Calculate crash point from seed
+function calculateCrashPoint(seed) {
+    // Convert the first 8 bytes of the seed to a number between 0 and 1
+    const hash = crypto.createHash('sha256').update(seed).digest('hex');
+    const e = parseInt(hash.slice(0, 8), 16);
+    
+    // Generate a float between 0 and 1
+    const x = e / Math.pow(2, 32);
+    
+    // House edge of 1%
+    const houseEdge = 0.01;
+    
+    // Apply the crash formula
+    if (x < houseEdge) {
+        return 1;
+    }
+    
+    return Math.floor((100 / (x - houseEdge)) / 100 * 100) / 100;
+}
+
+// Start the first crash round after server start
+setTimeout(startCrashRound, 10000);
 
 app.get('/api/crash/state', authenticateToken, (req, res) => {
-    res.json({ success: true, round: { ...crashState, bets: undefined } });
+    // Calculate time left until next round if in waiting state
+    let timeLeft = 0;
+    if (crashState.status === 'waiting') {
+        timeLeft = Math.max(0, Math.floor((crashState.nextRoundTime - Date.now()) / 1000));
+    }
+    
+    res.json({ 
+        success: true, 
+        round: {
+            ...crashState,
+            bets: undefined,
+            timeLeft,
+            hasBet: crashState.bets[req.user.username] !== undefined
+        }
+    });
 });
+
 app.post('/api/crash/bet', authenticateToken, async (req, res) => {
     const user = await usersCollection.findOne({ username: req.user.username });
     if (!user) return res.json({ success: false, message: "User not found" });
-    if (crashState.status !== 'running') return res.json({ success: false, message: "No round running" });
+    if (crashState.status !== 'waiting') return res.json({ success: false, message: "Can only bet during waiting period" });
     const amount = parseFloat(req.body.amount);
     if (!amount || amount <= 0) return res.json({ success: false, message: "Invalid amount" });
     if (user.balance < amount) return res.json({ success: false, message: "Insufficient balance" });
     if (crashState.bets[user.username]) return res.json({ success: false, message: "Already bet" });
+    
+    // Deduct bet amount from balance
     await usersCollection.updateOne({ username: user.username }, { $inc: { balance: -amount } });
-    crashState.bets[user.username] = { username: user.username, amount, at: crashState.multiplier, cashedOut: false };
+    
+    // Store bet in current round
+    crashState.bets[user.username] = { 
+        username: user.username, 
+        amount, 
+        at: crashState.multiplier,
+        placedAt: new Date(), 
+        cashedOut: false
+    };
+    
     res.json({ success: true });
 });
+
+app.post('/api/crash/cancel-bet', authenticateToken, async (req, res) => {
+    const user = await usersCollection.findOne({ username: req.user.username });
+    if (!user) return res.json({ success: false, message: "User not found" });
+    if (crashState.status !== 'waiting') return res.json({ success: false, message: "Can only cancel during waiting period" });
+    
+    const bet = crashState.bets[user.username];
+    if (!bet) return res.json({ success: false, message: "No active bet to cancel" });
+    
+    // Return bet amount to user
+    await usersCollection.updateOne({ username: user.username }, { $inc: { balance: bet.amount } });
+    
+    // Remove the bet
+    delete crashState.bets[user.username];
+    
+    res.json({ success: true, message: "Bet cancelled successfully" });
+});
+
 app.post('/api/crash/cashout', authenticateToken, async (req, res) => {
     const user = await usersCollection.findOne({ username: req.user.username });
     if (!user) return res.json({ success: false, message: "User not found" });
     const bet = crashState.bets[user.username];
     if (!bet || bet.cashedOut) return res.json({ success: false, message: "No bet" });
     if (crashState.status !== 'running') return res.json({ success: false, message: "Not running" });
+    
     bet.cashedOut = true;
     bet.cashedAt = crashState.multiplier;
     const payout = parseFloat((bet.amount * crashState.multiplier).toFixed(8));
+    
+    // Add winnings to user balance
     await usersCollection.updateOne({ username: user.username }, { $inc: { balance: payout } });
+    
+    // Record the cashout in database
     await crashCollection.updateOne(
         { roundId: crashState.roundId },
-        { $push: { bets: { username: user.username, amount: bet.amount, cashedAt: crashState.multiplier, payout, cashedOut: true, time: new Date() } } }
+        { $push: { bets: { 
+            username: user.username, 
+            amount: bet.amount, 
+            cashedAt: crashState.multiplier, 
+            payout, 
+            cashedOut: true, 
+            time: new Date() 
+        } } }
     );
+    
     res.json({ success: true, payout, multiplier: crashState.multiplier });
 });
 
@@ -252,17 +477,54 @@ app.post('/api/coinflip/bet', authenticateToken, async (req, res) => {
     if (!user) return res.json({ success: false, message: "User not found." });
     if (user.balance < amount) return res.json({ success: false, message: "Insufficient balance." });
 
+    // Get seeds for provably fair result
+    const seeds = await getOrCreateUserSeeds(req.user.username);
+    const serverSeed = seeds.coinflip.currentSeed;
+    const clientSeed = user.clientSeed || "default";
+    
+    // Generate result using provably fair method
+    const hash = crypto.createHash('sha256').update(serverSeed + clientSeed).digest('hex');
+    const randomValue = parseInt(hash.slice(0, 8), 16) / 0xffffffff;
+    const result = randomValue < 0.5 ? "heads" : "tails";
+    
     // Deduct bet amount up front
     await usersCollection.updateOne({ username: user.username }, { $inc: { balance: -amount } });
 
-    const result = Math.random() < 0.5 ? "heads" : "tails";
     const win = (choice === result);
     let payout = win ? amount * 2 : 0;
+    
     if (win) {
         await usersCollection.updateOne({ username: user.username }, { $inc: { balance: payout } });
     }
-    await coinflipCollection.insertOne({ username: user.username, amount, choice, result, win, payout, created: new Date() });
-    res.json({ success: true, result, win, payout });
+    
+    // Record game result
+    await coinflipCollection.insertOne({ 
+        username: user.username, 
+        amount, 
+        choice, 
+        result, 
+        win, 
+        payout, 
+        created: new Date(),
+        serverSeed,
+        clientSeed,
+        seedHash: seeds.coinflip.currentHash
+    });
+    
+    // Rotate seeds for next game
+    await rotateUserSeeds(user.username, 'coinflip');
+    
+    res.json({ 
+        success: true, 
+        result, 
+        win, 
+        payout,
+        provablyFair: {
+            serverSeed,
+            clientSeed,
+            seedHash: seeds.coinflip.currentHash
+        }
+    });
 });
 
 // ------ ROULETTE -------
@@ -439,7 +701,7 @@ app.get('/api/history/:game', authenticateToken, async (req, res) => {
     let query, project;
     if (game === "crash") {
         query = { "bets.username": req.user.username };
-        project = { roundId: 1, crashAt: 1, bets: 1, created: 1, ended: 1 };
+        project = { roundId: 1, crashAt: 1, bets: 1, created: 1, ended: 1, seedHash: 1, seed: 1 };
     } else {
         query = { username: req.user.username };
         project = { _id: 0 };
