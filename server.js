@@ -177,23 +177,14 @@ let crashState = {
 };
 
 /**
- * Use a per-tick exponential formula for multiplier, with small increments,
- * to ensure smooth, gradual increments like on bustabit (1.01, 1.02, 1.03, ...)
- * 
- * The classic bustabit formula:
- * multiplier = Math.floor(100 * Math.exp(growthRate * elapsed)) / 100
- * 
- * But for per-tick increments: 
- * multiplier = Math.floor(100 * (base ** ticks)) / 100
- * where base ≈ 1.0013 for ~1.06x per second at 20ms intervals
+ * Linear 0.01 increments per tick, every 20ms,
+ * for buttery-smooth, perfectly gradual multiplier: 1.01, 1.02, 1.03, ...
  */
 function startCrashRound() {
     crashState.roundId += 1;
     crashState.status = 'running';
     crashState.multiplier = 1;
     crashState.bets = {};
-
-    // Provably fair/variable crash point, keep as before
     crashState.crashAt = 1 + Math.pow(Math.random(), 2) * 4;
 
     crashCollection.insertOne({
@@ -203,15 +194,8 @@ function startCrashRound() {
         created: new Date()
     });
 
-    // --- Smoother bustabit-style exponential increments ---
-    let base = 1.0013; // ~1.06x per second at 20ms per tick (1.0013^50 ≈ 1.067)
-    let tick = 0;
     let interval = setInterval(async () => {
-        tick++;
-        crashState.multiplier = Math.floor(100 * (base ** tick)) / 100;
-
-        // Prevent floating-point rounding from skipping values (force min step)
-        if (crashState.multiplier < 1.01) crashState.multiplier = 1.01;
+        crashState.multiplier = Math.round((crashState.multiplier + 0.01) * 100) / 100;
 
         if (crashState.multiplier >= crashState.crashAt) {
             crashState.status = 'crashed';
@@ -222,7 +206,7 @@ function startCrashRound() {
             setTimeout(startCrashRound, 4000);
             clearInterval(interval);
         }
-    }, 20); // 20ms per tick for buttery smooth increments
+    }, 20); // 20ms per tick
 }
 setTimeout(startCrashRound, 2000);
 
