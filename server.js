@@ -294,7 +294,7 @@ let crashState = {
     multiplier: 1,
     bets: {},
     crashAt: 2,
-    nextRoundTime: Date.now() + 10000, // 10 seconds delay between rounds
+    nextRoundTime: Date.now() + 9000, // 9 seconds delay between rounds
     revealedSeed: null,
     seedHash: null
 };
@@ -310,7 +310,6 @@ async function startCrashRound() {
     crashState.roundId += 1;
     crashState.status = 'running';
     crashState.multiplier = 1;
-    crashState.bets = {};
     crashState.crashAt = crashPoint;
     crashState.seedHash = hash;
     crashState.revealedSeed = null;
@@ -325,6 +324,8 @@ async function startCrashRound() {
         seed: seed // Will be revealed after crash
     });
 
+    console.log(`Starting crash round ${crashState.roundId} with crash point ${crashPoint}x`);
+
     // Use integer arithmetic to avoid floating point errors
     let multiplierInCents = 100; // 1.00
     let interval = setInterval(async () => {
@@ -334,26 +335,37 @@ async function startCrashRound() {
         if (crashState.multiplier >= crashState.crashAt) {
             crashState.status = 'crashed';
             crashState.revealedSeed = seed;
+            
+            // Store all bets including automatic losses for those who didn't cash out
+            const finalBets = Object.values(crashState.bets).map(bet => {
+                // If not cashed out, mark as a loss
+                if (!bet.cashedOut) {
+                    bet.lost = true;
+                }
+                return bet;
+            });
+            
             await crashCollection.updateOne(
                 { roundId: crashState.roundId },
                 { 
                     $set: { 
                         crashAt: crashState.crashAt, 
                         ended: new Date(),
-                        bets: Object.values(crashState.bets),
+                        bets: finalBets,
                         seed: seed // Reveal the seed after crash
                     } 
                 }
             );
             
             // Set timer for next round
-            crashState.nextRoundTime = Date.now() + 10000; // 10 seconds delay
+            crashState.nextRoundTime = Date.now() + 9000; // 9 seconds delay
             crashState.status = 'waiting';
             
             // Start countdown for next round
-            setTimeout(startCrashRound, 10000);
+            setTimeout(startCrashRound, 9000);
             
             clearInterval(interval);
+            console.log(`Crash round ${crashState.roundId} ended at ${crashState.crashAt}x`);
         }
     }, 20);
 }
@@ -379,7 +391,11 @@ function calculateCrashPoint(seed) {
 }
 
 // Start the first crash round after server start
-setTimeout(startCrashRound, 10000);
+setTimeout(() => {
+    console.log("Starting initial crash round in 9 seconds...");
+    crashState.nextRoundTime = Date.now() + 9000;
+    setTimeout(startCrashRound, 9000);
+}, 2000);
 
 app.get('/api/crash/state', authenticateToken, (req, res) => {
     // Calculate time left until next round if in waiting state
@@ -388,13 +404,22 @@ app.get('/api/crash/state', authenticateToken, (req, res) => {
         timeLeft = Math.max(0, Math.floor((crashState.nextRoundTime - Date.now()) / 1000));
     }
     
+    // Check if the user has a bet in the current round
+    const userBet = crashState.bets[req.user.username];
+    const hasBet = userBet !== undefined;
+    const hasCashedOut = userBet && userBet.cashedOut;
+    
     res.json({ 
         success: true, 
         round: {
-            ...crashState,
-            bets: undefined,
+            roundId: crashState.roundId,
+            status: crashState.status,
+            multiplier: crashState.multiplier,
             timeLeft,
-            hasBet: crashState.bets[req.user.username] !== undefined
+            hasBet,
+            hasCashedOut,
+            seedHash: crashState.seedHash,
+            revealedSeed: crashState.revealedSeed
         }
     });
 });
@@ -415,11 +440,11 @@ app.post('/api/crash/bet', authenticateToken, async (req, res) => {
     crashState.bets[user.username] = { 
         username: user.username, 
         amount, 
-        at: crashState.multiplier,
         placedAt: new Date(), 
         cashedOut: false
     };
     
+    console.log(`${user.username} placed a bet of ${amount} on round ${crashState.roundId}`);
     res.json({ success: true });
 });
 
@@ -437,13 +462,14 @@ app.post('/api/crash/cancel-bet', authenticateToken, async (req, res) => {
     // Remove the bet
     delete crashState.bets[user.username];
     
+    console.log(`${user.username} canceled bet of ${bet.amount} on round ${crashState.roundId}`);
     res.json({ success: true, message: "Bet cancelled successfully" });
 });
 
 app.post('/api/crash/cashout', authenticateToken, async (req, res) => {
     const user = await usersCollection.findOne({ username: req.user.username });
     if (!user) return res.json({ success: false, message: "User not found" });
-    const bet = crashState.bets[user.username];
+    const bet = crashState.bets[req.user.username];
     if (!bet || bet.cashedOut) return res.json({ success: false, message: "No bet" });
     if (crashState.status !== 'running') return res.json({ success: false, message: "Not running" });
     
@@ -467,6 +493,7 @@ app.post('/api/crash/cashout', authenticateToken, async (req, res) => {
         } } }
     );
     
+    console.log(`${user.username} cashed out at ${crashState.multiplier}x, won ${payout}`);
     res.json({ success: true, payout, multiplier: crashState.multiplier });
 });
 
