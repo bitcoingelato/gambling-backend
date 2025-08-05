@@ -389,11 +389,121 @@
     let hcaptchaLoginToken = "", hcaptchaSignupToken = "";
     let countdownInterval = null;
     let crashSeeds = {}; // Store server seed hash for verification
-    let crashGameState = 'waiting'; // 'waiting', 'running', 'crashed'
-    let crashAnimationInterval = null;
     let lastCrashMultipliers = []; // Store last 10 crash multipliers
     let currentCrashMultiplier = 1.00;
     
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', function() {
+      // Check for session on page load
+      initAuth();
+      
+      // Set up event listeners
+      setupEventListeners();
+      
+      // Initialize hCaptcha
+      renderHCaptchaLogin();
+      renderHCaptchaSignup();
+    });
+    
+    // Check if user is already logged in (session restoration)
+    function initAuth() {
+      console.log("Checking for existing session...");
+      const savedToken = localStorage.getItem('authToken');
+      const savedUser = localStorage.getItem('user');
+      
+      if (savedToken && savedUser) {
+        console.log("Found saved session, restoring...");
+        authToken = savedToken;
+        user = savedUser;
+        afterLogin();
+      } else {
+        console.log("No saved session found");
+        gotoLogin();
+      }
+    }
+
+    // Set up all event listeners
+    function setupEventListeners() {
+      // Auth listeners
+      document.getElementById('showSignup').addEventListener('click', e => { e.preventDefault(); gotoSignup(); });
+      document.getElementById('showLogin').addEventListener('click', e => { e.preventDefault(); gotoLogin(); });
+      document.getElementById('loginBtn').addEventListener('click', login);
+      document.getElementById('signupBtn').addEventListener('click', signup);
+      document.getElementById('logoutBtn').addEventListener('click', logout);
+      
+      // Main navigation
+      document.getElementById('btnCrash').addEventListener('click', () => showCrashSection());
+      document.getElementById('btnCoinflip').addEventListener('click', () => showCoinflipSection());
+      document.getElementById('btnRoulette').addEventListener('click', () => showRouletteSection());
+      document.getElementById('btn3cp').addEventListener('click', () => show3CPSection());
+      document.getElementById('btnSettings').addEventListener('click', () => showSettingsSection());
+      
+      // Crash game listeners
+      document.getElementById('crashBetBtn').addEventListener('click', placeCrashBet);
+      document.getElementById('crashCancelBtn').addEventListener('click', cancelCrashBet);
+      document.getElementById('crashCashoutBtn').addEventListener('click', crashCashout);
+      document.getElementById('verifyFairnessBtn').addEventListener('click', verifyCrashFairness);
+      document.getElementById('closeVerifyBtn').addEventListener('click', () => {
+        document.getElementById('verifyModal').classList.add('hidden');
+      });
+      
+      // Coinflip listeners
+      document.getElementById('btnHeads').addEventListener('click', () => selectCoinflipSide('heads'));
+      document.getElementById('btnTails').addEventListener('click', () => selectCoinflipSide('tails'));
+      document.getElementById('coinflipBetBtn').addEventListener('click', flipCoin);
+      
+      // Roulette listeners
+      document.getElementById('btnRed').addEventListener('click', () => rouletteBet('red'));
+      document.getElementById('btnBlack').addEventListener('click', () => rouletteBet('black'));
+      document.getElementById('btnGreen').addEventListener('click', () => rouletteBet('green'));
+      
+      // 3CP listeners
+      document.getElementById('threecpAnteBtn').addEventListener('click', place3CPAnte);
+      document.getElementById('threecpPlayBtn').addEventListener('click', play3CP);
+      document.getElementById('threecpFoldBtn').addEventListener('click', fold3CP);
+      
+      // Settings forms
+      document.getElementById('formChangePassword').addEventListener('submit', changePassword);
+      document.getElementById('formChangeEmail').addEventListener('submit', changeEmail);
+    }
+
+    // hCaptcha callback
+    window.onLoginHCaptcha = function(token) { 
+      console.log("Login captcha completed");
+      hcaptchaLoginToken = token; 
+    };
+    
+    window.onSignupHCaptcha = function(token) { 
+      console.log("Signup captcha completed");
+      hcaptchaSignupToken = token; 
+    };
+    
+    function renderHCaptchaLogin() {
+      if (window.hcaptcha) {
+        console.log("Rendering login captcha");
+        hcaptcha.render('hcaptcha-login', {
+          sitekey: 'b1e64024-155e-43da-a5e6-9b56729c337e',
+          callback: 'onLoginHCaptcha'
+        });
+      } else {
+        console.log("hCaptcha not loaded, waiting...");
+        setTimeout(renderHCaptchaLogin, 500);
+      }
+    }
+    
+    function renderHCaptchaSignup() {
+      if (window.hcaptcha) {
+        console.log("Rendering signup captcha");
+        hcaptcha.render('hcaptcha-signup', {
+          sitekey: 'b1e64024-155e-43da-a5e6-9b56729c337e',
+          callback: 'onSignupHCaptcha'
+        });
+      } else {
+        console.log("hCaptcha not loaded, waiting...");
+        setTimeout(renderHCaptchaSignup, 500);
+      }
+    }
+
     // ---------- Auth/Login/Signup ----------
     function show(id) { document.getElementById(id).classList.remove('hidden'); }
     function hide(id) { document.getElementById(id).classList.add('hidden'); }
@@ -423,48 +533,36 @@
       renderHCaptchaSignup();
     }
 
-    // hCaptcha callback
-    window.onLoginHCaptcha = function(token) { hcaptchaLoginToken = token; };
-    window.onSignupHCaptcha = function(token) { hcaptchaSignupToken = token; };
-    
-    function renderHCaptchaLogin() {
-      if (window.hcaptcha) {
-        hcaptcha.render('hcaptcha-login', {
-          sitekey: 'b1e64024-155e-43da-a5e6-9b56729c337e',
-          callback: 'onLoginHCaptcha'
-        });
-      } else setTimeout(renderHCaptchaLogin, 500);
-    }
-    
-    function renderHCaptchaSignup() {
-      if (window.hcaptcha) {
-        hcaptcha.render('hcaptcha-signup', {
-          sitekey: 'b1e64024-155e-43da-a5e6-9b56729c337e',
-          callback: 'onSignupHCaptcha'
-        });
-      } else setTimeout(renderHCaptchaSignup, 500);
-    }
-
     async function login() {
       const username = document.getElementById('loginUser').value.trim();
       const password = document.getElementById('loginPass').value;
       document.getElementById('loginErr').textContent = '';
       if (!username || !password) { document.getElementById('loginErr').textContent = 'Enter both fields.'; return; }
       if (!hcaptchaLoginToken) { document.getElementById('loginErr').textContent = "Please complete the captcha."; return; }
-      const res = await fetch(`${API}/login`, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({username, password, captchaToken: hcaptchaLoginToken})
-      });
-      const data = await res.json();
-      if (data.success) {
-        authToken = data.token; user = data.username;
-        localStorage.setItem('authToken', authToken);
-        localStorage.setItem('user', user);
-        afterLogin();
-      } else {
-        document.getElementById('loginErr').textContent = data.message || "Login failed";
-        if (window.hcaptcha) hcaptcha.reset(document.getElementById('hcaptcha-login').firstChild);
-        hcaptchaLoginToken = "";
+      
+      try {
+        console.log("Sending login request...");
+        const res = await fetch(`${API}/login`, {
+          method:'POST', 
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({username, password, captchaToken: hcaptchaLoginToken})
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+          authToken = data.token; 
+          user = data.username;
+          localStorage.setItem('authToken', authToken);
+          localStorage.setItem('user', user);
+          afterLogin();
+        } else {
+          document.getElementById('loginErr').textContent = data.message || "Login failed";
+          if (window.hcaptcha) hcaptcha.reset('hcaptcha-login');
+          hcaptchaLoginToken = "";
+        }
+      } catch (e) {
+        console.error("Login error:", e);
+        document.getElementById('loginErr').textContent = "Network error. Try again.";
       }
     }
 
@@ -475,30 +573,40 @@
       document.getElementById('signupErr').textContent = '';
       if (!username || !email || !password) { document.getElementById('signupErr').textContent = 'Fill all fields.'; return; }
       if (!hcaptchaSignupToken) { document.getElementById('signupErr').textContent = "Please complete the captcha."; return; }
-      const res = await fetch(`${API}/signup`, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({username, email, password, captchaToken: hcaptchaSignupToken})
-      });
-      const data = await res.json();
-      if (data.success) {
-        // Immediately log user in for fun mode
-        const res2 = await fetch(`${API}/login`, {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({username, password, captchaToken: hcaptchaSignupToken})
+      
+      try {
+        const res = await fetch(`${API}/signup`, {
+          method:'POST', 
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({username, email, password, captchaToken: hcaptchaSignupToken})
         });
-        const data2 = await res2.json();
-        if (data2.success) {
-          authToken = data2.token; user = data2.username;
-          localStorage.setItem('authToken', authToken);
-          localStorage.setItem('user', user);
-          afterLogin();
+        
+        const data = await res.json();
+        if (data.success) {
+          // Immediately log user in for fun mode
+          const res2 = await fetch(`${API}/login`, {
+            method:'POST', 
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({username, password, captchaToken: hcaptchaSignupToken})
+          });
+          const data2 = await res2.json();
+          if (data2.success) {
+            authToken = data2.token; 
+            user = data2.username;
+            localStorage.setItem('authToken', authToken);
+            localStorage.setItem('user', user);
+            afterLogin();
+          } else {
+            document.getElementById('signupErr').textContent = "Signup succeeded, but login failed.";
+          }
         } else {
-          document.getElementById('signupErr').textContent = "Signup succeeded, but login failed.";
+          document.getElementById('signupErr').textContent = data.message || "Signup failed";
+          if (window.hcaptcha) hcaptcha.reset('hcaptcha-signup');
+          hcaptchaSignupToken = "";
         }
-      } else {
-        document.getElementById('signupErr').textContent = data.message || "Signup failed";
-        if (window.hcaptcha) hcaptcha.reset(document.getElementById('hcaptcha-signup').firstChild);
-        hcaptchaSignupToken = "";
+      } catch (e) {
+        console.error("Signup error:", e);
+        document.getElementById('signupErr').textContent = "Network error. Try again.";
       }
     }
 
@@ -593,15 +701,20 @@
       else if(newPassword.length < 6) msg = "New password too short.";
       if(msg){ document.getElementById('settingsMsg').textContent = msg; return; }
       
-      const res = await fetch(`${API}/change-password`, {
-        method:'POST',
-        headers:{'Authorization':'Bearer '+authToken, 'Content-Type':'application/json'},
-        body: JSON.stringify({currentPassword, newPassword})
-      });
-      
-      const data = await res.json();
-      document.getElementById('settingsMsg').textContent = data.success ? "Password changed!" : (data.message || "Error");
-      if(data.success) this.reset();
+      try {
+        const res = await fetch(`${API}/change-password`, {
+          method:'POST',
+          headers:{'Authorization':'Bearer '+authToken, 'Content-Type':'application/json'},
+          body: JSON.stringify({currentPassword, newPassword})
+        });
+        
+        const data = await res.json();
+        document.getElementById('settingsMsg').textContent = data.success ? "Password changed!" : (data.message || "Error");
+        if(data.success) this.reset();
+      } catch (e) {
+        console.error("Change password error:", e);
+        document.getElementById('settingsMsg').textContent = "Network error. Try again.";
+      }
     }
 
     async function changeEmail(e) {
@@ -613,18 +726,27 @@
       else if(!/^\S+@\S+\.\S+$/.test(newEmail)) msg = "Invalid email.";
       if(msg){ document.getElementById('settingsMsg').textContent = msg; return; }
       
-      const res = await fetch(`${API}/change-email`, {
-        method:'POST',
-        headers:{'Authorization':'Bearer '+authToken, 'Content-Type':'application/json'},
-        body: JSON.stringify({currentPassword, newEmail})
-      });
-      
-      const data = await res.json();
-      document.getElementById('settingsMsg').textContent = data.success ? "Email changed!" : (data.message || "Error");
-      if(data.success) this.reset();
+      try {
+        const res = await fetch(`${API}/change-email`, {
+          method:'POST',
+          headers:{'Authorization':'Bearer '+authToken, 'Content-Type':'application/json'},
+          body: JSON.stringify({currentPassword, newEmail})
+        });
+        
+        const data = await res.json();
+        document.getElementById('settingsMsg').textContent = data.success ? "Email changed!" : (data.message || "Error");
+        if(data.success) this.reset();
+      } catch (e) {
+        console.error("Change email error:", e);
+        document.getElementById('settingsMsg').textContent = "Network error. Try again.";
+      }
     }
 
     // ---------- CRASH GAME ----------
+    // Global variables for crash animation
+    let crashAnimationInterval = null;
+    let crashGameState = 'waiting';
+    
     function startCrashPoll() {
       placedBet = null;
       crashRoundId = 0;
@@ -657,6 +779,7 @@
       
       if (crashRocket) crashRocket.style.opacity = 0;
       if (crashLine) crashLine.style.height = '0px';
+      if (crashLine) crashLine.style.width = '0px';
       if (crashExplosion) {
         crashExplosion.classList.remove('visible');
         crashExplosion.style.opacity = 0;
@@ -671,9 +794,15 @@
     async function fetchCrashState() {
       if (!authToken) return;
       try {
-        const res = await fetch(`${API}/crash/state`, {headers:{'Authorization':'Bearer '+authToken}});
+        console.log("Fetching crash state...");
+        const res = await fetch(`${API}/crash/state`, {
+          headers:{'Authorization':'Bearer '+authToken}
+        });
+        
         const data = await res.json();
         if (data.success && data.round) {
+          console.log("Crash state:", data.round.status, "Time left:", data.round.timeLeft);
+          
           // Check for new round
           if (crashRoundId !== data.round.roundId) {
             crashRoundId = data.round.roundId;
@@ -692,23 +821,47 @@
           // Update UI based on round state
           if (data.round.status === 'waiting') {
             resetCrashGame();
-            updateCrashControls();
             
             // Start countdown if we have timeLeft
             if (data.round.timeLeft !== undefined) {
+              console.log("Starting countdown with time left:", data.round.timeLeft);
               startCountdown(data.round.timeLeft);
             }
-          } else if (data.round.status === 'running') {
+            
+            // Update bet controls
+            document.getElementById('crashBetBtn').disabled = false;
+            document.getElementById('crashCancelBtn').disabled = placedBet === null;
+            document.getElementById('crashCashoutBtn').disabled = true;
+          } 
+          else if (data.round.status === 'running') {
+            // If not already animating, start animation
             if (!crashAnimationInterval) {
-              startCrashAnimation(data.round.multiplier);
+              startCrashAnimation(data.round.multiplier || 1.00);
             }
-            updateCrashMultiplier(data.round.multiplier);
-          } else if (data.round.status === 'crashed') {
+            
+            // Update multiplier
+            currentCrashMultiplier = data.round.multiplier || 1.00;
+            document.getElementById('crashMultiplier').textContent = currentCrashMultiplier.toFixed(2) + 'x';
+            
+            // Update bet controls
+            document.getElementById('crashBetBtn').disabled = true;
+            document.getElementById('crashCancelBtn').disabled = true;
+            document.getElementById('crashCashoutBtn').disabled = placedBet === null;
+            
+            // Update timer display
+            document.getElementById('crashTimer').textContent = 'Game in progress...';
+          } 
+          else if (data.round.status === 'crashed') {
+            // Stop animation
             if (crashAnimationInterval) {
               clearInterval(crashAnimationInterval);
               crashAnimationInterval = null;
               showCrashExplosion();
             }
+            
+            // Update multiplier
+            currentCrashMultiplier = data.round.multiplier || data.round.crashAt || 1.00;
+            document.getElementById('crashMultiplier').textContent = currentCrashMultiplier.toFixed(2) + 'x';
             
             // Update server seed if crashed (revealed)
             if (data.round.revealedSeed) {
@@ -724,9 +877,18 @@
               if (lastCrashMultipliers.length > 10) lastCrashMultipliers.pop();
               updateRecentCrashes();
             }
+            
+            // Update bet controls
+            document.getElementById('crashBetBtn').disabled = true;
+            document.getElementById('crashCancelBtn').disabled = true;
+            document.getElementById('crashCashoutBtn').disabled = true;
+            
+            // Reset placed bet
+            placedBet = null;
+            
+            // Update timer display
+            document.getElementById('crashTimer').textContent = 'Game crashed!';
           }
-          
-          updateCrashControls();
         }
       } catch (e) {
         console.error("Error fetching crash state:", e);
@@ -734,19 +896,23 @@
     }
     
     function startCountdown(seconds) {
-      // Don't restart countdown if already counting
+      // Clear any existing countdown
       if (countdownInterval) {
         clearInterval(countdownInterval);
         countdownInterval = null;
       }
       
       // Get current time remaining
-      let timeLeft = seconds || 9;
+      let timeLeft = Math.max(0, seconds || 9);
       document.getElementById('countdown').textContent = timeLeft;
       document.getElementById('crashTimer').textContent = `Next round in ${timeLeft}s`;
       
+      console.log("Countdown started:", timeLeft, "seconds");
+      
       countdownInterval = setInterval(() => {
         timeLeft -= 1;
+        console.log("Countdown tick:", timeLeft);
+        
         if (timeLeft <= 0) {
           clearInterval(countdownInterval);
           countdownInterval = null;
@@ -776,24 +942,31 @@
       crashRocket.classList.add('visible');
       crashRocket.style.opacity = 1;
       
-      // Animation
+      // Animation - slowed down
       if (crashAnimationInterval) clearInterval(crashAnimationInterval);
+      
+      console.log("Starting crash animation");
+      
+      // Update the position immediately once
+      updateCrashPosition(crashLine, crashRocket, graphHeight, graphWidth, currentCrashMultiplier);
+      
+      // Then set up the interval for future updates
       crashAnimationInterval = setInterval(() => {
-        // Calculate height based on multiplier (logarithmic scale)
-        const height = Math.min(graphHeight * Math.log10(currentCrashMultiplier) / Math.log10(10), graphHeight - 10);
-        const width = Math.min(graphWidth * 0.01 * currentCrashMultiplier, graphWidth - 10);
-        
-        // Update position
-        crashLine.style.height = `${height}px`;
-        crashLine.style.width = `${width}px`;
-        crashRocket.style.bottom = `${height}px`;
-        crashRocket.style.left = `${width}px`;
-      }, 50);
+        updateCrashPosition(crashLine, crashRocket, graphHeight, graphWidth, currentCrashMultiplier);
+      }, 100); // Slower update interval (100ms instead of 50ms)
     }
     
-    function updateCrashMultiplier(multiplier) {
-      currentCrashMultiplier = multiplier;
-      document.getElementById('crashMultiplier').textContent = currentCrashMultiplier.toFixed(2) + 'x';
+    function updateCrashPosition(crashLine, crashRocket, graphHeight, graphWidth, multiplier) {
+      // Calculate height based on multiplier (logarithmic scale)
+      // Use a slower growth rate
+      const height = Math.min(graphHeight * (Math.log(multiplier) / Math.log(20)), graphHeight - 10);
+      const width = Math.min(graphWidth * multiplier / 30, graphWidth - 10);
+      
+      // Update position
+      crashLine.style.height = `${height}px`;
+      crashLine.style.width = `${width}px`;
+      crashRocket.style.bottom = `${height}px`;
+      crashRocket.style.left = `${width}px`;
     }
     
     function showCrashExplosion() {
@@ -838,40 +1011,26 @@
       
       if (!betBtn || !cancelBtn || !cashoutBtn) return;
       
-      switch(crashGameState) {
-        case 'waiting':
-          betBtn.disabled = false;
-          cancelBtn.disabled = placedBet === null;
-          cashoutBtn.disabled = true;
-          break;
-          
-        case 'running':
-          betBtn.disabled = true;
-          cancelBtn.disabled = true;
-          cashoutBtn.disabled = placedBet === null;
-          break;
-          
-        case 'crashed':
-          betBtn.disabled = true;
-          cancelBtn.disabled = true;
-          cashoutBtn.disabled = true;
-          placedBet = null;
-          break;
-      }
+      betBtn.disabled = crashGameState !== 'waiting';
+      cancelBtn.disabled = crashGameState !== 'waiting' || placedBet === null;
+      cashoutBtn.disabled = crashGameState !== 'running' || placedBet === null;
     }
     
     async function getCrashHistory() {
       if (!authToken) return;
       try {
+        console.log("Fetching crash history...");
         const res = await fetch(`${API}/history/crash`, {
           headers:{'Authorization':'Bearer '+authToken}
         });
+        
         const data = await res.json();
         const tbody = document.querySelector('#crashHistory tbody');
         tbody.innerHTML = '';
+        
         if (data.success && Array.isArray(data.history)) {
           // Populate last crash multipliers
-          lastCrashMultipliers = data.history.slice(0, 10).map(round => round.crashAt);
+          lastCrashMultipliers = data.history.slice(0, 10).map(round => round.crashAt || 1);
           updateRecentCrashes();
           
           data.history.slice(0, 10).forEach((round, index) => {
@@ -883,7 +1042,7 @@
               };
             }
             
-            const crashAt = round.crashAt ? round.crashAt.toFixed(2) : '';
+            const crashAt = round.crashAt ? round.crashAt.toFixed(2) : '1.00';
             const tr = document.createElement('tr');
             tr.innerHTML = `
               <td>${round.roundId || ''}</td>
@@ -901,19 +1060,20 @@
     
     async function placeCrashBet() {
       if (crashGameState !== 'waiting') {
-        document.getElementById('crashMsg').textContent = "Wait for next round to place bet";
+        showCrashMsg("Wait for next round to place bet");
         return;
       }
       
       const amt = parseFloat(document.getElementById('crashBetAmount').value);
       if (!amt || amt <= 0) { 
-        document.getElementById('crashMsg').textContent = "Enter a bet > 0"; 
+        showCrashMsg("Enter a bet > 0"); 
         return;
       }
       
-      document.getElementById('crashMsg').textContent = "";
+      showCrashMsg("");
       
       try {
+        console.log("Placing crash bet:", amt);
         const res = await fetch(`${API}/crash/bet`, {
           method: 'POST',
           headers: {'Authorization': 'Bearer '+authToken, 'Content-Type': 'application/json'},
@@ -922,26 +1082,30 @@
         
         const data = await res.json();
         if (data.success) {
+          console.log("Bet placed successfully");
           placedBet = {amount: amt, cashedOut: false};
           refreshBalance();
           updateCrashControls();
         } else {
-          document.getElementById('crashMsg').textContent = data.message || "Bet failed";
+          console.error("Bet failed:", data.message);
+          showCrashMsg(data.message || "Bet failed");
         }
       } catch (e) {
-        document.getElementById('crashMsg').textContent = "Error connecting to server";
+        console.error("Error placing bet:", e);
+        showCrashMsg("Error connecting to server");
       }
     }
     
     async function cancelCrashBet() {
       if (crashGameState !== 'waiting' || !placedBet) {
-        document.getElementById('crashMsg').textContent = "Cannot cancel bet at this time";
+        showCrashMsg("Cannot cancel bet at this time");
         return;
       }
       
-      document.getElementById('crashMsg').textContent = "";
+      showCrashMsg("");
       
       try {
+        console.log("Canceling crash bet");
         const res = await fetch(`${API}/crash/cancel-bet`, {
           method: 'POST',
           headers: {'Authorization': 'Bearer '+authToken, 'Content-Type': 'application/json'}
@@ -949,27 +1113,31 @@
         
         const data = await res.json();
         if (data.success) {
+          console.log("Bet canceled successfully");
           placedBet = null;
-          document.getElementById('crashMsg').textContent = "Bet cancelled successfully";
+          showCrashMsg("Bet cancelled successfully");
           refreshBalance();
           updateCrashControls();
         } else {
-          document.getElementById('crashMsg').textContent = data.message || "Failed to cancel bet";
+          console.error("Cancel failed:", data.message);
+          showCrashMsg(data.message || "Failed to cancel bet");
         }
       } catch (e) {
-        document.getElementById('crashMsg').textContent = "Error connecting to server";
+        console.error("Error canceling bet:", e);
+        showCrashMsg("Error connecting to server");
       }
     }
     
     async function crashCashout() {
       if (crashGameState !== 'running' || !placedBet) {
-        document.getElementById('crashMsg').textContent = "Cannot cash out at this time";
+        showCrashMsg("Cannot cash out at this time");
         return;
       }
       
-      document.getElementById('crashMsg').textContent = "";
+      showCrashMsg("");
       
       try {
+        console.log("Cashing out crash bet");
         const res = await fetch(`${API}/crash/cashout`, {
           method: 'POST',
           headers: {'Authorization': 'Bearer '+authToken, 'Content-Type': 'application/json'}
@@ -977,16 +1145,23 @@
         
         const data = await res.json();
         if (data.success) {
-          document.getElementById('crashMsg').textContent = `Cashed out at ${data.multiplier.toFixed(2)}x, won ${data.payout.toFixed(2)}!`;
+          console.log("Cashed out successfully at", data.multiplier);
+          showCrashMsg(`Cashed out at ${data.multiplier.toFixed(2)}x, won ${data.payout.toFixed(2)}!`);
           placedBet = null;
           refreshBalance();
           updateCrashControls();
         } else {
-          document.getElementById('crashMsg').textContent = data.message || "Cash out failed";
+          console.error("Cashout failed:", data.message);
+          showCrashMsg(data.message || "Cash out failed");
         }
       } catch (e) {
-        document.getElementById('crashMsg').textContent = "Error connecting to server";
+        console.error("Error cashing out:", e);
+        showCrashMsg("Error connecting to server");
       }
+    }
+    
+    function showCrashMsg(msg) {
+      document.getElementById('crashMsg').textContent = msg || '';
     }
     
     // Provably fair verification functionality
@@ -1062,6 +1237,7 @@
       if (!coinflipChoice) { setText('coinflipMsg',"Pick heads or tails"); return; }
       
       try {
+        console.log("Placing coinflip bet:", amt, coinflipChoice);
         const res = await fetch(`${API}/coinflip/bet`, {
           method:'POST',
           headers:{'Authorization':'Bearer '+authToken, 'Content-Type':'application/json'},
@@ -1076,7 +1252,8 @@
           setText('coinflipMsg', data.message || "Bet failed");
         }
       } catch (e) {
-        setText('coinflipMsg', "Network error");
+        console.error("Coinflip error:", e);
+        setText('coinflipMsg', "Network error. Please try again.");
       }
     }
 
@@ -1099,6 +1276,7 @@
       if (!amt || amt<=0) { setText('rouletteMsg',"Enter a bet > 0"); return; }
       
       try {
+        console.log("Placing roulette bet:", amt, color);
         const res = await fetch(`${API}/roulette/bet`, {
           method:'POST',
           headers:{'Authorization':'Bearer '+authToken, 'Content-Type':'application/json'},
@@ -1146,7 +1324,8 @@
                 rouletteSpinning = false;
               }
             } catch (e) {
-              setText('rouletteResult', "Network error");
+              console.error("Roulette state error:", e);
+              setText('rouletteResult', "Network error. Please try again.");
               rouletteSpinning = false;
             }
           }, 1000); // Delay to give server time to process
@@ -1154,7 +1333,8 @@
           setText('rouletteMsg', data.message || "Bet failed");
         }
       } catch (e) {
-        setText('rouletteMsg', "Network error");
+        console.error("Roulette bet error:", e);
+        setText('rouletteMsg', "Network error. Please try again.");
       }
     }
 
@@ -1170,165 +1350,4 @@
       let color = (suit === 'H' || suit === 'D') ? 'red' : 'black';
       return `<div class="card ${color}">${rankToUnicode[rank] || rank}${suitToUnicode[suit] || ''}</div>`;
     }
-    function renderCardBack() {
-      return `<div class="card back">🂠</div>`;
-    }
-    let threecpGame = null;
-    
-    function resetThreecp() {
-      threecpGame = null;
-      document.getElementById('threecpBetAmount').value = "1.00";
-      setText('threecpMsg', "");
-      setText('threecpResult', "Waiting for bet...");
-      setText('threecpPlayer', "");
-      setText('threecpDealer', "");
-      document.getElementById('threecpDecisionBtns').classList.add('hidden');
-    }
-    
-    async function place3CPAnte() {
-      setText('threecpMsg', "");
-      let amt = parseFloat(document.getElementById('threecpBetAmount').value);
-      if (!amt || amt<=0) { setText('threecpMsg',"Enter a bet > 0"); return; }
-      
-      try {
-        const res = await fetch(`${API}/3cp/ante`, {
-          method: 'POST',
-          headers: { 'Authorization': 'Bearer '+authToken, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount: amt })
-        });
-        
-        const data = await res.json();
-        if (data.success) {
-          // Display player's cards
-          threecpGame = { player: data.player, dealer: data.dealer };
-          document.getElementById('threecpPlayer').innerHTML = "Your hand: <span class='card-row'>" +
-            data.player.map(renderCard).join('') + "</span>";
-          document.getElementById('threecpDealer').innerHTML = "Dealer: <span class='card-row'>" +
-            [renderCardBack(),renderCardBack(),renderCardBack()].join('') + "</span>";
-          
-          document.getElementById('threecpDecisionBtns').classList.remove('hidden');
-          setText('threecpResult', "Do you want to Play (up ante) or Fold?");
-          refreshBalance();
-        } else {
-          setText('threecpMsg', data.message || "Ante failed");
-        }
-      } catch (e) {
-        setText('threecpMsg', "Network error");
-      }
-    }
-    
-    async function play3CP() {
-      try {
-        const res = await fetch(`${API}/3cp/play`, {
-          method: 'POST',
-          headers: { 'Authorization': 'Bearer '+authToken, 'Content-Type': 'application/json' }
-        });
-        
-        const data = await res.json();
-        if (data.success) {
-          document.getElementById('threecpDealer').innerHTML = "Dealer: <span class='card-row'>" +
-            data.dealer.map(renderCard).join('') + "</span>";
-          document.getElementById('threecpDecisionBtns').classList.add('hidden');
-          setText('threecpResult', data.win ? `You win! Payout: ${data.payout}` : "You lose.");
-          refreshBalance();
-        } else {
-          setText('threecpMsg', data.message || "Play failed");
-        }
-      } catch (e) {
-        setText('threecpMsg', "Network error");
-      }
-    }
-    
-    async function fold3CP() {
-      try {
-        const res = await fetch(`${API}/3cp/fold`, {
-          method: 'POST',
-          headers: { 'Authorization': 'Bearer '+authToken, 'Content-Type': 'application/json' }
-        });
-        
-        const data = await res.json();
-        if (data.success) {
-          document.getElementById('threecpDealer').innerHTML = "Dealer: <span class='card-row'>" +
-            data.dealer.map(renderCard).join('') + "</span>";
-          document.getElementById('threecpDecisionBtns').classList.add('hidden');
-          setText('threecpResult', "You folded. You lost your ante.");
-          refreshBalance();
-        } else {
-          setText('threecpMsg', data.message || "Fold failed");
-        }
-      } catch (e) {
-        setText('threecpMsg', "Network error");
-      }
-    }
-
-    function updateChatboxVisibility() {
-      // This would be implemented if you have a chatbox functionality
-      const chatbox = document.getElementById('chatbox');
-      if (chatbox) {
-        chatbox.style.display = authToken ? 'flex' : 'none';
-      }
-    }
-
-    // Initialize page
-    document.addEventListener('DOMContentLoaded', function() {
-      // Check for session on page load
-      const savedToken = localStorage.getItem('authToken');
-      const savedUser = localStorage.getItem('user');
-      
-      if (savedToken && savedUser) {
-        console.log("Found saved session, restoring...");
-        authToken = savedToken;
-        user = savedUser;
-        afterLogin();
-      } else {
-        console.log("No saved session found");
-        gotoLogin();
-      }
-      
-      // Set up event listeners
-      document.getElementById('showSignup').addEventListener('click', e => { e.preventDefault(); gotoSignup(); });
-      document.getElementById('showLogin').addEventListener('click', e => { e.preventDefault(); gotoLogin(); });
-      document.getElementById('loginBtn').addEventListener('click', login);
-      document.getElementById('signupBtn').addEventListener('click', signup);
-      document.getElementById('logoutBtn').addEventListener('click', logout);
-      
-      document.getElementById('btnCrash').addEventListener('click', showCrashSection);
-      document.getElementById('btnCoinflip').addEventListener('click', showCoinflipSection);
-      document.getElementById('btnRoulette').addEventListener('click', showRouletteSection);
-      document.getElementById('btn3cp').addEventListener('click', show3CPSection);
-      document.getElementById('btnSettings').addEventListener('click', showSettingsSection);
-      
-      document.getElementById('crashBetBtn').addEventListener('click', placeCrashBet);
-      document.getElementById('crashCancelBtn').addEventListener('click', cancelCrashBet);
-      document.getElementById('crashCashoutBtn').addEventListener('click', crashCashout);
-      document.getElementById('verifyFairnessBtn').addEventListener('click', verifyCrashFairness);
-      document.getElementById('closeVerifyBtn').addEventListener('click', () => {
-        document.getElementById('verifyModal').classList.add('hidden');
-      });
-      
-      document.getElementById('btnHeads').addEventListener('click', () => selectCoinflipSide('heads'));
-      document.getElementById('btnTails').addEventListener('click', () => selectCoinflipSide('tails'));
-      document.getElementById('coinflipBetBtn').addEventListener('click', flipCoin);
-      
-      document.getElementById('btnRed').addEventListener('click', () => rouletteBet('red'));
-      document.getElementById('btnBlack').addEventListener('click', () => rouletteBet('black'));
-      document.getElementById('btnGreen').addEventListener('click', () => rouletteBet('green'));
-      
-      document.getElementById('threecpAnteBtn').addEventListener('click', place3CPAnte);
-      document.getElementById('threecpPlayBtn').addEventListener('click', play3CP);
-      document.getElementById('threecpFoldBtn').addEventListener('click', fold3CP);
-      
-      document.getElementById('formChangePassword').addEventListener('submit', changePassword);
-      document.getElementById('formChangeEmail').addEventListener('submit', changeEmail);
-
-      // Initialize hCaptcha
-      renderHCaptchaLogin();
-      renderHCaptchaSignup();
-    });
-  </script>
-  
-  <!-- ==== Chatbox UI ==== -->
-  <div id="chatbox" style="display:none;position:fixed;bottom:0;right:0;width:320px;max-width:98vw;
-    background:#222;border-top-left-radius:12px;box-shadow:0 0 12px #000c;
-    border:1.5px solid #ffc107;z-index:1001;display:flex;flex-direction:column;
-    transition:
+    function renderCardBack()
