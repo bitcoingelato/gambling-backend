@@ -394,11 +394,34 @@
     let lastCrashMultipliers = []; // Store last 10 crash multipliers
     let currentCrashMultiplier = 1.00;
     
-    // Initialize hCaptcha when the page loads
-    window.onload = function() {
+    // ---------- Auth/Login/Signup ----------
+    function show(id) { document.getElementById(id).classList.remove('hidden'); }
+    function hide(id) { document.getElementById(id).classList.add('hidden'); }
+    function setText(id, val) { document.getElementById(id).textContent = val; }
+
+    function gotoLogin() {
+      hide('mainPage'); hide('crashSection'); hide('coinflipSection'); hide('rouletteSection'); hide('threecpSection'); hide('settingsSection');
+      show('loginPage');
+      show('loginBox'); hide('signupBox');
+      document.getElementById('loginErr').textContent = '';
+      document.getElementById('loginUser').value = '';
+      document.getElementById('loginPass').value = '';
+      hcaptchaLoginToken = '';
+      document.getElementById('hcaptcha-login').innerHTML = '';
       renderHCaptchaLogin();
+    }
+    function gotoSignup() {
+      hide('mainPage'); hide('crashSection'); hide('coinflipSection'); hide('rouletteSection'); hide('threecpSection'); hide('settingsSection');
+      show('loginPage');
+      hide('loginBox'); show('signupBox');
+      document.getElementById('signupErr').textContent = '';
+      document.getElementById('signupUser').value = '';
+      document.getElementById('signupPass').value = '';
+      document.getElementById('signupEmail').value = '';
+      hcaptchaSignupToken = '';
+      document.getElementById('hcaptcha-signup').innerHTML = '';
       renderHCaptchaSignup();
-    };
+    }
 
     // hCaptcha callback
     window.onLoginHCaptcha = function(token) { hcaptchaLoginToken = token; };
@@ -422,330 +445,183 @@
       } else setTimeout(renderHCaptchaSignup, 500);
     }
 
-    document.getElementById('showSignup').addEventListener('click', function(e) {
-      e.preventDefault();
-      document.getElementById('loginBox').classList.add('hidden');
-      document.getElementById('signupBox').classList.remove('hidden');
-    });
-
-    document.getElementById('showLogin').addEventListener('click', function(e) {
-      e.preventDefault();
-      document.getElementById('loginBox').classList.remove('hidden');
-      document.getElementById('signupBox').classList.add('hidden');
-    });
-
-    document.getElementById('loginBtn').addEventListener('click', login);
-    document.getElementById('signupBtn').addEventListener('click', signup);
-    document.getElementById('logoutBtn').addEventListener('click', logout);
-    document.getElementById('btnCrash').addEventListener('click', showCrashSection);
-    document.getElementById('btnCoinflip').addEventListener('click', showCoinflipSection);
-    document.getElementById('btnRoulette').addEventListener('click', showRouletteSection);
-    document.getElementById('btn3cp').addEventListener('click', show3CPSection);
-    document.getElementById('btnSettings').addEventListener('click', showSettingsSection);
-    document.getElementById('crashBetBtn').addEventListener('click', placeCrashBet);
-    document.getElementById('crashCancelBtn').addEventListener('click', cancelCrashBet);
-    document.getElementById('crashCashoutBtn').addEventListener('click', crashCashout);
-    document.getElementById('verifyFairnessBtn').addEventListener('click', verifyCrashFairness);
-    document.getElementById('closeVerifyBtn').addEventListener('click', function() {
-      document.getElementById('verifyModal').classList.add('hidden');
-    });
-    
-    document.getElementById('btnHeads').addEventListener('click', function() {
-      selectCoinflipSide('heads');
-    });
-    document.getElementById('btnTails').addEventListener('click', function() {
-      selectCoinflipSide('tails');
-    });
-    document.getElementById('coinflipBetBtn').addEventListener('click', flipCoin);
-    document.getElementById('btnRed').addEventListener('click', function() {
-      rouletteBet('red');
-    });
-    document.getElementById('btnBlack').addEventListener('click', function() {
-      rouletteBet('black');
-    });
-    document.getElementById('btnGreen').addEventListener('click', function() {
-      rouletteBet('green');
-    });
-    document.getElementById('threecpAnteBtn').addEventListener('click', place3CPAnte);
-    document.getElementById('threecpPlayBtn').addEventListener('click', play3CP);
-    document.getElementById('threecpFoldBtn').addEventListener('click', fold3CP);
-    document.getElementById('formChangePassword').addEventListener('submit', changePassword);
-    document.getElementById('formChangeEmail').addEventListener('submit', changeEmail);
-
-    // Check for existing session on page load
-    function checkSession() {
-      authToken = localStorage.getItem('authToken');
-      user = localStorage.getItem('user');
-      
-      if (authToken && user) {
-        afterLogin();
-      }
-    }
-    checkSession();
-
-    function show(id) { document.getElementById(id).classList.remove('hidden'); }
-    function hide(id) { document.getElementById(id).classList.add('hidden'); }
-
     async function login() {
-      const username = document.getElementById('loginUser').value;
+      const username = document.getElementById('loginUser').value.trim();
       const password = document.getElementById('loginPass').value;
       document.getElementById('loginErr').textContent = '';
-      
-      if (!username || !password) {
-        document.getElementById('loginErr').textContent = 'Enter both fields.';
-        return;
-      }
-      
-      if (!hcaptchaLoginToken) {
-        document.getElementById('loginErr').textContent = 'Please complete the captcha.';
-        return;
-      }
-      
-      try {
-        const res = await fetch(`${API}/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            username,
-            password,
-            captchaToken: hcaptchaLoginToken
-          })
-        });
-        
-        const data = await res.json();
-        
-        if (data.success) {
-          authToken = data.token;
-          user = data.username;
-          localStorage.setItem('authToken', authToken);
-          localStorage.setItem('user', user);
-          afterLogin();
-        } else {
-          document.getElementById('loginErr').textContent = data.message || 'Login failed.';
-        }
-      } catch (err) {
-        document.getElementById('loginErr').textContent = 'Network error. Try again.';
+      if (!username || !password) { document.getElementById('loginErr').textContent = 'Enter both fields.'; return; }
+      if (!hcaptchaLoginToken) { document.getElementById('loginErr').textContent = "Please complete the captcha."; return; }
+      const res = await fetch(`${API}/login`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({username, password, captchaToken: hcaptchaLoginToken})
+      });
+      const data = await res.json();
+      if (data.success) {
+        authToken = data.token; user = data.username;
+        localStorage.setItem('authToken', authToken);
+        localStorage.setItem('user', user);
+        afterLogin();
+      } else {
+        document.getElementById('loginErr').textContent = data.message || "Login failed";
+        if (window.hcaptcha) hcaptcha.reset(document.getElementById('hcaptcha-login').firstChild);
+        hcaptchaLoginToken = "";
       }
     }
 
     async function signup() {
-      const username = document.getElementById('signupUser').value;
-      const email = document.getElementById('signupEmail').value;
+      const username = document.getElementById('signupUser').value.trim();
+      const email = document.getElementById('signupEmail').value.trim();
       const password = document.getElementById('signupPass').value;
       document.getElementById('signupErr').textContent = '';
-      
-      if (!username || !email || !password) {
-        document.getElementById('signupErr').textContent = 'Fill all fields.';
-        return;
-      }
-      
-      if (!hcaptchaSignupToken) {
-        document.getElementById('signupErr').textContent = 'Please complete the captcha.';
-        return;
-      }
-      
-      try {
-        const res = await fetch(`${API}/signup`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            username,
-            email,
-            password,
-            captchaToken: hcaptchaSignupToken
-          })
+      if (!username || !email || !password) { document.getElementById('signupErr').textContent = 'Fill all fields.'; return; }
+      if (!hcaptchaSignupToken) { document.getElementById('signupErr').textContent = "Please complete the captcha."; return; }
+      const res = await fetch(`${API}/signup`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({username, email, password, captchaToken: hcaptchaSignupToken})
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Immediately log user in for fun mode
+        const res2 = await fetch(`${API}/login`, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({username, password, captchaToken: hcaptchaSignupToken})
         });
-        
-        const data = await res.json();
-        
-        if (data.success) {
-          document.getElementById('signupErr').textContent = 'Signup successful! You can now log in.';
-          document.getElementById('loginBox').classList.remove('hidden');
-          document.getElementById('signupBox').classList.add('hidden');
-          document.getElementById('loginUser').value = username;
+        const data2 = await res2.json();
+        if (data2.success) {
+          authToken = data2.token; user = data2.username;
+          localStorage.setItem('authToken', authToken);
+          localStorage.setItem('user', user);
+          afterLogin();
         } else {
-          document.getElementById('signupErr').textContent = data.message || 'Signup failed.';
+          document.getElementById('signupErr').textContent = "Signup succeeded, but login failed.";
         }
-      } catch (err) {
-        document.getElementById('signupErr').textContent = 'Network error. Try again.';
+      } else {
+        document.getElementById('signupErr').textContent = data.message || "Signup failed";
+        if (window.hcaptcha) hcaptcha.reset(document.getElementById('hcaptcha-signup').firstChild);
+        hcaptchaSignupToken = "";
       }
     }
 
     function afterLogin() {
-      document.getElementById('loginPage').classList.add('hidden');
-      document.getElementById('mainPage').classList.remove('hidden');
-      document.getElementById('userName').textContent = user;
+      console.log("Login successful, showing main page");
+      hide('loginPage'); hide('settingsSection');
+      hide('crashSection'); hide('coinflipSection'); hide('rouletteSection'); hide('threecpSection');
+      show('mainPage');
+      setText('userName', user);
       refreshBalance();
+      updateChatboxVisibility(); // Make chat box visible if it exists
     }
 
     function logout() {
-      authToken = '';
-      user = '';
+      authToken = ''; user = '';
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
-      document.getElementById('loginPage').classList.remove('hidden');
-      document.getElementById('mainPage').classList.add('hidden');
-      document.getElementById('crashSection').classList.add('hidden');
-      document.getElementById('coinflipSection').classList.add('hidden');
-      document.getElementById('rouletteSection').classList.add('hidden');
-      document.getElementById('threecpSection').classList.add('hidden');
-      document.getElementById('settingsSection').classList.add('hidden');
       stopCrashPoll();
+      gotoLogin();
+      updateChatboxVisibility();
     }
 
+    // ---------- Main Navigation ----------
     function showCrashSection() {
-      hide('mainPage');
-      hide('coinflipSection');
-      hide('rouletteSection');
-      hide('threecpSection');
-      hide('settingsSection');
+      hide('mainPage'); hide('settingsSection'); hide('coinflipSection'); hide('rouletteSection'); hide('threecpSection');
       show('crashSection');
       startCrashPoll();
     }
 
     function showCoinflipSection() {
-      hide('mainPage');
-      hide('crashSection');
-      hide('rouletteSection');
-      hide('threecpSection');
-      hide('settingsSection');
+      hide('mainPage'); hide('settingsSection'); hide('crashSection'); hide('rouletteSection'); hide('threecpSection');
       show('coinflipSection');
+      resetCoinflip();
     }
 
     function showRouletteSection() {
-      hide('mainPage');
-      hide('crashSection');
-      hide('coinflipSection');
-      hide('threecpSection');
-      hide('settingsSection');
+      hide('mainPage'); hide('settingsSection'); hide('crashSection'); hide('coinflipSection'); hide('threecpSection');
       show('rouletteSection');
+      resetRoulette();
     }
 
     function show3CPSection() {
-      hide('mainPage');
-      hide('crashSection');
-      hide('coinflipSection');
-      hide('rouletteSection');
-      hide('settingsSection');
+      hide('mainPage'); hide('settingsSection'); hide('crashSection'); hide('coinflipSection'); hide('rouletteSection');
       show('threecpSection');
+      resetThreecp();
     }
 
     function showSettingsSection() {
-      hide('mainPage');
-      hide('crashSection');
-      hide('coinflipSection');
-      hide('rouletteSection');
-      hide('threecpSection');
+      hide('mainPage'); hide('crashSection'); hide('coinflipSection'); hide('rouletteSection'); hide('threecpSection');
       show('settingsSection');
+      document.getElementById('settingsMsg').textContent = "";
+      document.getElementById('formChangePassword').reset();
+      document.getElementById('formChangeEmail').reset();
     }
 
     function backToMenu() {
-      hide('crashSection');
-      hide('coinflipSection');
-      hide('rouletteSection');
-      hide('threecpSection');
-      hide('settingsSection');
+      hide('crashSection'); hide('coinflipSection'); hide('rouletteSection'); hide('threecpSection'); hide('settingsSection');
       show('mainPage');
       stopCrashPoll();
       refreshBalance();
     }
 
+    // ---------- Fun Mode Balance ----------
     async function refreshBalance() {
       if (!authToken) return;
       
       try {
         const res = await fetch(`${API}/balance`, {
-          headers: { 'Authorization': 'Bearer ' + authToken }
+          headers:{'Authorization':'Bearer '+authToken}
         });
         
         const data = await res.json();
-        
         if (data.success) {
-          document.getElementById('balance').textContent = data.balance.toFixed(2);
+          setText('balance', data.balance.toFixed(2));
+        } else {
+          setText('balance', "0.00");
         }
-      } catch (err) {
-        console.error('Error fetching balance:', err);
+      } catch(e) {
+        console.error("Error fetching balance:", e);
       }
     }
 
+    // ---------- ACCOUNT SETTINGS ----------
     async function changePassword(e) {
       e.preventDefault();
+      let msg = "";
       const currentPassword = document.getElementById('currentPassword').value;
       const newPassword = document.getElementById('newPassword').value;
       const confirmNewPassword = document.getElementById('confirmNewPassword').value;
-      const settingsMsg = document.getElementById('settingsMsg');
-      settingsMsg.textContent = '';
+      if(!currentPassword || !newPassword || !confirmNewPassword) msg = "All fields required.";
+      else if(newPassword !== confirmNewPassword) msg = "Passwords do not match.";
+      else if(newPassword.length < 6) msg = "New password too short.";
+      if(msg){ document.getElementById('settingsMsg').textContent = msg; return; }
       
-      if (!currentPassword || !newPassword || !confirmNewPassword) {
-        settingsMsg.textContent = 'All fields required.';
-        return;
-      }
+      const res = await fetch(`${API}/change-password`, {
+        method:'POST',
+        headers:{'Authorization':'Bearer '+authToken, 'Content-Type':'application/json'},
+        body: JSON.stringify({currentPassword, newPassword})
+      });
       
-      if (newPassword !== confirmNewPassword) {
-        settingsMsg.textContent = 'Passwords do not match.';
-        return;
-      }
-      
-      try {
-        const res = await fetch(`${API}/change-password`, {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + authToken,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            currentPassword,
-            newPassword
-          })
-        });
-        
-        const data = await res.json();
-        
-        settingsMsg.textContent = data.success ? 'Password changed successfully!' : (data.message || 'Error changing password.');
-        
-        if (data.success) {
-          document.getElementById('formChangePassword').reset();
-        }
-      } catch (err) {
-        settingsMsg.textContent = 'Network error. Try again.';
-      }
+      const data = await res.json();
+      document.getElementById('settingsMsg').textContent = data.success ? "Password changed!" : (data.message || "Error");
+      if(data.success) this.reset();
     }
 
     async function changeEmail(e) {
       e.preventDefault();
+      let msg = "";
       const currentPassword = document.getElementById('currentPassword2').value;
       const newEmail = document.getElementById('newEmail').value;
-      const settingsMsg = document.getElementById('settingsMsg');
-      settingsMsg.textContent = '';
+      if(!currentPassword || !newEmail) msg = "All fields required.";
+      else if(!/^\S+@\S+\.\S+$/.test(newEmail)) msg = "Invalid email.";
+      if(msg){ document.getElementById('settingsMsg').textContent = msg; return; }
       
-      if (!currentPassword || !newEmail) {
-        settingsMsg.textContent = 'All fields required.';
-        return;
-      }
+      const res = await fetch(`${API}/change-email`, {
+        method:'POST',
+        headers:{'Authorization':'Bearer '+authToken, 'Content-Type':'application/json'},
+        body: JSON.stringify({currentPassword, newEmail})
+      });
       
-      try {
-        const res = await fetch(`${API}/change-email`, {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + authToken,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            currentPassword,
-            newEmail
-          })
-        });
-        
-        const data = await res.json();
-        
-        settingsMsg.textContent = data.success ? 'Email changed successfully!' : (data.message || 'Error changing email.');
-        
-        if (data.success) {
-          document.getElementById('formChangeEmail').reset();
-        }
-      } catch (err) {
-        settingsMsg.textContent = 'Network error. Try again.';
-      }
+      const data = await res.json();
+      document.getElementById('settingsMsg').textContent = data.success ? "Email changed!" : (data.message || "Error");
+      if(data.success) this.reset();
     }
 
     // ---------- CRASH GAME ----------
@@ -1159,6 +1035,15 @@
     window.verifyCrashRound = verifyCrashRound;
 
     // ---------- COINFLIP GAME ----------
+    function resetCoinflip() {
+      coinflipChoice = null;
+      document.getElementById('btnHeads').classList.remove('selected');
+      document.getElementById('btnTails').classList.remove('selected');
+      document.getElementById('coinflipBetAmount').value = "1.00";
+      setText('coinflipResult', "Waiting for flip...");
+      setText('coinflipMsg', "");
+    }
+    
     function selectCoinflipSide(side) {
       coinflipChoice = side;
       if (side === 'heads') {
@@ -1171,16 +1056,10 @@
     }
     
     async function flipCoin() {
-      document.getElementById('coinflipMsg').textContent = "";
+      setText('coinflipMsg', "");
       const amt = parseFloat(document.getElementById('coinflipBetAmount').value);
-      if (!amt || amt<=0) { 
-        document.getElementById('coinflipMsg').textContent = "Enter a bet > 0";
-        return; 
-      }
-      if (!coinflipChoice) { 
-        document.getElementById('coinflipMsg').textContent = "Pick heads or tails";
-        return;
-      }
+      if (!amt || amt<=0) { setText('coinflipMsg',"Enter a bet > 0"); return; }
+      if (!coinflipChoice) { setText('coinflipMsg',"Pick heads or tails"); return; }
       
       try {
         const res = await fetch(`${API}/coinflip/bet`, {
@@ -1191,24 +1070,33 @@
         
         const data = await res.json();
         if (data.success) {
-          document.getElementById('coinflipResult').textContent = `Result: ${data.result}. ${data.win?"You win!":"You lose."} ${data.win?("Won "+data.payout):""}`; 
+          setText('coinflipResult', `Result: ${data.result}. ${data.win?"You win!":"You lose."} ${data.win?("Won "+data.payout):""}`);
           refreshBalance();
         } else {
-          document.getElementById('coinflipMsg').textContent = data.message || "Bet failed";
+          setText('coinflipMsg', data.message || "Bet failed");
         }
       } catch (e) {
-        document.getElementById('coinflipMsg').textContent = "Network error";
+        setText('coinflipMsg', "Network error");
       }
     }
 
     // ---------- ROULETTE GAME ----------
+    const rouletteColors = ['red','black','red','black','green','red','black'];
+    let rouletteSpinning = false, rouletteResultIndex = 0;
+    
+    function resetRoulette() {
+      document.getElementById('rouletteBetAmount').value = "1.00";
+      setText('rouletteMsg', "");
+      setText('rouletteResult', "Waiting for spin...");
+      document.getElementById('rouletteWheel').style.transform = 'rotate(0deg)';
+      rouletteSpinning = false;
+    }
+    
     async function rouletteBet(color) {
-      document.getElementById('rouletteMsg').textContent = "";
-      const amt = parseFloat(document.getElementById('rouletteBetAmount').value);
-      if (!amt || amt<=0) { 
-        document.getElementById('rouletteMsg').textContent = "Enter a bet > 0";
-        return;
-      }
+      if (rouletteSpinning) return;
+      setText('rouletteMsg', "");
+      let amt = parseFloat(document.getElementById('rouletteBetAmount').value);
+      if (!amt || amt<=0) { setText('rouletteMsg',"Enter a bet > 0"); return; }
       
       try {
         const res = await fetch(`${API}/roulette/bet`, {
@@ -1219,9 +1107,12 @@
         
         const data = await res.json();
         if (data.success) {
-          document.getElementById('rouletteResult').textContent = "Spinning...";
+          // Spin wheel!
+          rouletteSpinning = true;
+          setText('rouletteResult', "Spinning...");
           refreshBalance();
           
+          // Fetch roulette state after a delay to get the result
           setTimeout(async () => {
             try {
               const stateRes = await fetch(`${API}/roulette/state`, {
@@ -1230,30 +1121,40 @@
               
               const stateData = await stateRes.json();
               if (stateData.success && stateData.round) {
-                // Animate wheel
-                const resultColor = stateData.round.color;
-                const angle = Math.floor(Math.random() * 360) + 720; // 2+ full rotations
-                document.getElementById('rouletteWheel').style.transform = `rotate(${angle}deg)`;
+                // Pick random slot for result
+                rouletteResultIndex = Math.floor(Math.random() * rouletteColors.length);
+                // Ensure it matches the server's result color
+                const resultColor = stateData.round.color || rouletteColors[rouletteResultIndex];
+                
+                // Calculate degrees to rotate so that result slot is at top (pointer)
+                let degreesPerSlot = 360 / rouletteColors.length;
+                let targetDeg = (360*3) + (360 - rouletteResultIndex*degreesPerSlot); // 3 full spins + landing
+                document.getElementById('rouletteWheel').style.transition = 'transform 3s cubic-bezier(.32,1.56,.49,.98)';
+                document.getElementById('rouletteWheel').style.transform = `rotate(${targetDeg}deg)`;
                 
                 setTimeout(() => {
-                  // Show result
-                  const win = (color === resultColor);
-                  const payout = win ? (color === "green" ? amt * 14 : amt * 2) : 0;
-                  document.getElementById('rouletteResult').textContent = `Result: ${resultColor}. ${win?"You win!":"You lose."} ${payout>0?("Won "+payout.toFixed(2)):""}`; 
+                  // Reveal result
+                  let win = (color === resultColor);
+                  let payout = 0;
+                  if (win) payout = color === "green" ? amt * 14 : amt * 2;
+                  setText('rouletteResult', `Result: ${resultColor}. ${win?"You win!":"You lose."} ${payout>0?("Won "+payout.toFixed(2)):""}`);
+                  rouletteSpinning = false;
                   refreshBalance();
-                }, 3000); // After wheel stops
+                }, 3000);
               } else {
-                document.getElementById('rouletteResult').textContent = "Error getting result";
+                setText('rouletteResult', "Error getting result");
+                rouletteSpinning = false;
               }
             } catch (e) {
-              document.getElementById('rouletteResult').textContent = "Network error";
+              setText('rouletteResult', "Network error");
+              rouletteSpinning = false;
             }
-          }, 1000);
+          }, 1000); // Delay to give server time to process
         } else {
-          document.getElementById('rouletteMsg').textContent = data.message || "Bet failed";
+          setText('rouletteMsg', data.message || "Bet failed");
         }
       } catch (e) {
-        document.getElementById('rouletteMsg').textContent = "Network error";
+        setText('rouletteMsg', "Network error");
       }
     }
 
@@ -1274,13 +1175,20 @@
     }
     let threecpGame = null;
     
+    function resetThreecp() {
+      threecpGame = null;
+      document.getElementById('threecpBetAmount').value = "1.00";
+      setText('threecpMsg', "");
+      setText('threecpResult', "Waiting for bet...");
+      setText('threecpPlayer', "");
+      setText('threecpDealer', "");
+      document.getElementById('threecpDecisionBtns').classList.add('hidden');
+    }
+    
     async function place3CPAnte() {
-      document.getElementById('threecpMsg').textContent = "";
-      const amt = parseFloat(document.getElementById('threecpBetAmount').value);
-      if (!amt || amt<=0) { 
-        document.getElementById('threecpMsg').textContent = "Enter a bet > 0";
-        return; 
-      }
+      setText('threecpMsg', "");
+      let amt = parseFloat(document.getElementById('threecpBetAmount').value);
+      if (!amt || amt<=0) { setText('threecpMsg',"Enter a bet > 0"); return; }
       
       try {
         const res = await fetch(`${API}/3cp/ante`, {
@@ -1299,13 +1207,13 @@
             [renderCardBack(),renderCardBack(),renderCardBack()].join('') + "</span>";
           
           document.getElementById('threecpDecisionBtns').classList.remove('hidden');
-          document.getElementById('threecpResult').textContent = "Do you want to Play (up ante) or Fold?";
+          setText('threecpResult', "Do you want to Play (up ante) or Fold?");
           refreshBalance();
         } else {
-          document.getElementById('threecpMsg').textContent = data.message || "Ante failed";
+          setText('threecpMsg', data.message || "Ante failed");
         }
       } catch (e) {
-        document.getElementById('threecpMsg').textContent = "Network error";
+        setText('threecpMsg', "Network error");
       }
     }
     
@@ -1321,13 +1229,13 @@
           document.getElementById('threecpDealer').innerHTML = "Dealer: <span class='card-row'>" +
             data.dealer.map(renderCard).join('') + "</span>";
           document.getElementById('threecpDecisionBtns').classList.add('hidden');
-          document.getElementById('threecpResult').textContent = data.win ? `You win! Payout: ${data.payout}` : "You lose.";
+          setText('threecpResult', data.win ? `You win! Payout: ${data.payout}` : "You lose.");
           refreshBalance();
         } else {
-          document.getElementById('threecpMsg').textContent = data.message || "Play failed";
+          setText('threecpMsg', data.message || "Play failed");
         }
       } catch (e) {
-        document.getElementById('threecpMsg').textContent = "Network error";
+        setText('threecpMsg', "Network error");
       }
     }
     
@@ -1343,66 +1251,84 @@
           document.getElementById('threecpDealer').innerHTML = "Dealer: <span class='card-row'>" +
             data.dealer.map(renderCard).join('') + "</span>";
           document.getElementById('threecpDecisionBtns').classList.add('hidden');
-          document.getElementById('threecpResult').textContent = "You folded. You lost your ante.";
+          setText('threecpResult', "You folded. You lost your ante.");
           refreshBalance();
         } else {
-          document.getElementById('threecpMsg').textContent = data.message || "Fold failed";
+          setText('threecpMsg', data.message || "Fold failed");
         }
       } catch (e) {
-        document.getElementById('threecpMsg').textContent = "Network error";
+        setText('threecpMsg', "Network error");
       }
     }
+
+    function updateChatboxVisibility() {
+      // This would be implemented if you have a chatbox functionality
+      const chatbox = document.getElementById('chatbox');
+      if (chatbox) {
+        chatbox.style.display = authToken ? 'flex' : 'none';
+      }
+    }
+
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', function() {
+      // Check for session on page load
+      const savedToken = localStorage.getItem('authToken');
+      const savedUser = localStorage.getItem('user');
+      
+      if (savedToken && savedUser) {
+        console.log("Found saved session, restoring...");
+        authToken = savedToken;
+        user = savedUser;
+        afterLogin();
+      } else {
+        console.log("No saved session found");
+        gotoLogin();
+      }
+      
+      // Set up event listeners
+      document.getElementById('showSignup').addEventListener('click', e => { e.preventDefault(); gotoSignup(); });
+      document.getElementById('showLogin').addEventListener('click', e => { e.preventDefault(); gotoLogin(); });
+      document.getElementById('loginBtn').addEventListener('click', login);
+      document.getElementById('signupBtn').addEventListener('click', signup);
+      document.getElementById('logoutBtn').addEventListener('click', logout);
+      
+      document.getElementById('btnCrash').addEventListener('click', showCrashSection);
+      document.getElementById('btnCoinflip').addEventListener('click', showCoinflipSection);
+      document.getElementById('btnRoulette').addEventListener('click', showRouletteSection);
+      document.getElementById('btn3cp').addEventListener('click', show3CPSection);
+      document.getElementById('btnSettings').addEventListener('click', showSettingsSection);
+      
+      document.getElementById('crashBetBtn').addEventListener('click', placeCrashBet);
+      document.getElementById('crashCancelBtn').addEventListener('click', cancelCrashBet);
+      document.getElementById('crashCashoutBtn').addEventListener('click', crashCashout);
+      document.getElementById('verifyFairnessBtn').addEventListener('click', verifyCrashFairness);
+      document.getElementById('closeVerifyBtn').addEventListener('click', () => {
+        document.getElementById('verifyModal').classList.add('hidden');
+      });
+      
+      document.getElementById('btnHeads').addEventListener('click', () => selectCoinflipSide('heads'));
+      document.getElementById('btnTails').addEventListener('click', () => selectCoinflipSide('tails'));
+      document.getElementById('coinflipBetBtn').addEventListener('click', flipCoin);
+      
+      document.getElementById('btnRed').addEventListener('click', () => rouletteBet('red'));
+      document.getElementById('btnBlack').addEventListener('click', () => rouletteBet('black'));
+      document.getElementById('btnGreen').addEventListener('click', () => rouletteBet('green'));
+      
+      document.getElementById('threecpAnteBtn').addEventListener('click', place3CPAnte);
+      document.getElementById('threecpPlayBtn').addEventListener('click', play3CP);
+      document.getElementById('threecpFoldBtn').addEventListener('click', fold3CP);
+      
+      document.getElementById('formChangePassword').addEventListener('submit', changePassword);
+      document.getElementById('formChangeEmail').addEventListener('submit', changeEmail);
+
+      // Initialize hCaptcha
+      renderHCaptchaLogin();
+      renderHCaptchaSignup();
+    });
   </script>
   
   <!-- ==== Chatbox UI ==== -->
   <div id="chatbox" style="display:none;position:fixed;bottom:0;right:0;width:320px;max-width:98vw;
     background:#222;border-top-left-radius:12px;box-shadow:0 0 12px #000c;
     border:1.5px solid #ffc107;z-index:1001;display:flex;flex-direction:column;
-    transition:height 0.2s;">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 14px;background:#191919;color:#ffc107;border-top-left-radius:10px;">
-      <span style="font-weight:bold;">💬 Chat</span>
-      <button id="chatboxToggle" style="background:none;border:none;color:#ffc107;font-size:1.2em;cursor:pointer;">_</button>
-    </div>
-    <div id="chatMessages" style="flex:1;overflow-y:auto;padding:8px 10px;height:180px;max-height:280px;"></div>
-    <form id="chatForm" style="display:flex;gap:6px;padding:7px;background:#232323;border-bottom-left-radius:10px;">
-      <input id="chatInput" type="text" maxlength="300" autocomplete="off" placeholder="Type a message..." style="flex:1;padding:7px;background:#191919;color:#fff;border:1px solid #ffc107;border-radius:5px;">
-      <button type="submit" style="background:#ffc107;color:#222;border:none;border-radius:6px;padding:6px 13px;font-weight:bold;">Send</button>
-    </form>
-  </div>
-
-  <script>
-  // ==== Chatbox JS ====
-  document.addEventListener('DOMContentLoaded', function() {
-    let chatboxOpen = true;
-    const chatbox = document.getElementById('chatbox');
-    const chatMessagesDiv = document.getElementById('chatMessages');
-    const chatForm = document.getElementById('chatForm');
-    const chatInput = document.getElementById('chatInput');
-    const chatboxToggle = document.getElementById('chatboxToggle');
-    let chatPolling = null;
-
-    // Show/hide chatbox if logged in
-    function updateChatboxVisibility() {
-      if (authToken && user) {
-        chatbox.style.display = 'flex';
-        chatForm.elements['chatInput'].disabled = false;
-        startChatPolling();
-      } else {
-        chatbox.style.display = 'none';
-        chatForm.elements['chatInput'].disabled = true;
-        if (chatPolling) clearInterval(chatPolling);
-      }
-    }
-
-    // Toggle minimize/maximize chatbox
-    chatboxToggle.onclick = function() {
-      chatboxOpen = !chatboxOpen;
-      if (chatboxOpen) {
-        chatMessagesDiv.style.display = 'block';
-        chatForm.style.display = 'flex';
-        chatboxToggle.textContent = '_';
-        chatbox.style.height = '';
-      } else {
-        chatMessagesDiv.style.display = 'none';
-        chatForm.style.display = 'none';
-        chatboxToggle
+    transition:
