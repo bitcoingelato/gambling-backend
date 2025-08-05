@@ -176,14 +176,24 @@ let crashState = {
     crashAt: 2
 };
 
-// Exponential crash curve like Bustabit
+/**
+ * Use a per-tick exponential formula for multiplier, with small increments,
+ * to ensure smooth, gradual increments like on bustabit (1.01, 1.02, 1.03, ...)
+ * 
+ * The classic bustabit formula:
+ * multiplier = Math.floor(100 * Math.exp(growthRate * elapsed)) / 100
+ * 
+ * But for per-tick increments: 
+ * multiplier = Math.floor(100 * (base ** ticks)) / 100
+ * where base ≈ 1.0013 for ~1.06x per second at 20ms intervals
+ */
 function startCrashRound() {
     crashState.roundId += 1;
     crashState.status = 'running';
     crashState.multiplier = 1;
     crashState.bets = {};
 
-    // Provably fair but for demo, keep this as before
+    // Provably fair/variable crash point, keep as before
     crashState.crashAt = 1 + Math.pow(Math.random(), 2) * 4;
 
     crashCollection.insertOne({
@@ -193,12 +203,15 @@ function startCrashRound() {
         created: new Date()
     });
 
-    // Use exponential curve for smooth, slow start and faster later (Bustabit-like)
-    let startTime = Date.now();
+    // --- Smoother bustabit-style exponential increments ---
+    let base = 1.0013; // ~1.06x per second at 20ms per tick (1.0013^50 ≈ 1.067)
+    let tick = 0;
     let interval = setInterval(async () => {
-        let elapsed = (Date.now() - startTime) / 1000; // seconds
-        // 0.06 is a good curve, similar to bustabit, tweak if you want
-        crashState.multiplier = Math.floor(100 * Math.exp(0.06 * elapsed)) / 100;
+        tick++;
+        crashState.multiplier = Math.floor(100 * (base ** tick)) / 100;
+
+        // Prevent floating-point rounding from skipping values (force min step)
+        if (crashState.multiplier < 1.01) crashState.multiplier = 1.01;
 
         if (crashState.multiplier >= crashState.crashAt) {
             crashState.status = 'crashed';
@@ -209,7 +222,7 @@ function startCrashRound() {
             setTimeout(startCrashRound, 4000);
             clearInterval(interval);
         }
-    }, 50); // update every 50ms for smooth effect
+    }, 20); // 20ms per tick for buttery smooth increments
 }
 setTimeout(startCrashRound, 2000);
 
