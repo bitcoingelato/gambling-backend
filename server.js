@@ -14,6 +14,7 @@ const allowedOrigins = [
   'https://reliable-cendol-97b021.netlify.app',
   'http://localhost:8888',
   'http://localhost:3000',
+  'https://bitcoingelato.github.io', // Add your GitHub Pages URL if you're hosting there
 ];
 app.use(cors({
   origin: function(origin, callback){
@@ -31,7 +32,7 @@ app.use(express.json());
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017";
 const DB_NAME = process.env.DB_NAME || "casino";
-const HCAPTCHA_SECRET = process.env.HCAPTCHA_SECRET || "b1e64024-155e-43da-a5e6-9b56729c337e";
+const HCAPTCHA_SECRET = process.env.HCAPTCHA_SECRET || "your-hcaptcha-secret";
 
 let db, usersCollection, crashCollection, coinflipCollection, rouletteCollection, pokerCollection, seedsCollection;
 let dbReady = false;
@@ -58,6 +59,9 @@ app.use((req, res, next) => {
     if (!dbReady) return res.status(503).json({ success: false, message: "Database not connected." });
     next();
 });
+
+// Serve static files from the public directory
+app.use(express.static('public'));
 
 function authenticateToken(req, res, next) {
     const auth = req.headers['authorization'];
@@ -133,20 +137,22 @@ async function rotateUserSeeds(username, gameType) {
 app.post('/api/signup', async (req, res) => {
     try {
         const { username, email, password, captchaToken } = req.body;
-        if (!username || !email || !password || !captchaToken) {
+        if (!username || !email || !password) {
             return res.json({ success: false, message: "Missing fields" });
         }
         if (password.length < 6) return res.json({ success: false, message: "Password too short" });
         if (await usersCollection.findOne({ username })) return res.json({ success: false, message: "Username taken" });
         if (await usersCollection.findOne({ email })) return res.json({ success: false, message: "Email taken" });
 
-        // hCaptcha verification (server-side)
-        const captchaResponse = await fetch('https://hcaptcha.com/siteverify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `secret=${HCAPTCHA_SECRET}&response=${captchaToken}`
-        }).then(r => r.json());
-        if (!captchaResponse.success) return res.json({ success: false, message: "Invalid CAPTCHA" });
+        // hCaptcha verification (server-side) - skip if in development mode
+        if (process.env.NODE_ENV !== 'development' && captchaToken) {
+            const captchaResponse = await fetch('https://hcaptcha.com/siteverify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `secret=${HCAPTCHA_SECRET}&response=${captchaToken}`
+            }).then(r => r.json());
+            if (!captchaResponse.success) return res.json({ success: false, message: "Invalid CAPTCHA" });
+        }
 
         const hash = await bcrypt.hash(password, 10);
         await usersCollection.insertOne({
@@ -171,16 +177,19 @@ app.post('/api/signup', async (req, res) => {
 app.post('/api/login', async (req, res) => {
     try {
         const { username, password, captchaToken } = req.body;
-        if (!username || !password || !captchaToken) {
+        if (!username || !password) {
             return res.json({ success: false, message: "Missing fields" });
         }
-        // hCaptcha verification (server-side)
-        const captchaResponse = await fetch('https://hcaptcha.com/siteverify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `secret=${HCAPTCHA_SECRET}&response=${captchaToken}`
-        }).then(r => r.json());
-        if (!captchaResponse.success) return res.json({ success: false, message: "Invalid CAPTCHA" });
+        
+        // hCaptcha verification (server-side) - skip if in development mode
+        if (process.env.NODE_ENV !== 'development' && captchaToken) {
+            const captchaResponse = await fetch('https://hcaptcha.com/siteverify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `secret=${HCAPTCHA_SECRET}&response=${captchaToken}`
+            }).then(r => r.json());
+            if (!captchaResponse.success) return res.json({ success: false, message: "Invalid CAPTCHA" });
+        }
 
         const user = await usersCollection.findOne({ username });
         if (!user) return res.json({ success: false, message: "User not found" });
@@ -313,6 +322,7 @@ async function startCrashRound() {
     crashState.crashAt = crashPoint;
     crashState.seedHash = hash;
     crashState.revealedSeed = null;
+    crashState.bets = {}; // Reset bets for new round
 
     // Store round info in database
     await crashCollection.insertOne({
@@ -333,6 +343,7 @@ async function startCrashRound() {
         crashState.multiplier = multiplierInCents / 100;
 
         if (crashState.multiplier >= crashState.crashAt) {
+            clearInterval(interval);
             crashState.status = 'crashed';
             crashState.revealedSeed = seed;
             
@@ -364,7 +375,6 @@ async function startCrashRound() {
             // Start countdown for next round
             setTimeout(startCrashRound, 9000);
             
-            clearInterval(interval);
             console.log(`Crash round ${crashState.roundId} ended at ${crashState.crashAt}x`);
         }
     }, 20);
@@ -475,7 +485,7 @@ app.post('/api/crash/cashout', authenticateToken, async (req, res) => {
     
     bet.cashedOut = true;
     bet.cashedAt = crashState.multiplier;
-    const payout = parseFloat((bet.amount * crashState.multiplier).toFixed(8));
+    const payout = parseFloat((bet.amount * crashState.multiplier).toFixed(2));
     
     // Add winnings to user balance
     await usersCollection.updateOne({ username: user.username }, { $inc: { balance: payout } });
@@ -495,6 +505,19 @@ app.post('/api/crash/cashout', authenticateToken, async (req, res) => {
     
     console.log(`${user.username} cashed out at ${crashState.multiplier}x, won ${payout}`);
     res.json({ success: true, payout, multiplier: crashState.multiplier });
+});
+
+app.get('/api/crash/history', authenticateToken, async (req, res) => {
+    try {
+        const history = await crashCollection
+            .find({}, { projection: { _id: 0, roundId: 1, crashAt: 1, created: 1, seed: 1, seedHash: 1 } })
+            .sort({ roundId: -1 })
+            .limit(20)
+            .toArray();
+        res.json({ success: true, history });
+    } catch (e) {
+        res.json({ success: false, message: e.message });
+    }
 });
 
 // ------ COINFLIP -------
@@ -825,6 +848,21 @@ app.post('/api/chat', authenticateToken, async (req, res) => {
         res.json({ success: true });
     } catch (e) {
         res.json({ success: false, message: 'Error posting chat.' });
+    }
+});
+
+// Root endpoint to serve the index.html file
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/index.html');
+});
+
+// Catch-all route to serve index.html for client-side routing
+app.get('*', (req, res) => {
+    // Exclude API routes from catch-all
+    if (!req.path.startsWith('/api/')) {
+        res.sendFile(__dirname + '/index.html');
+    } else {
+        res.status(404).json({ success: false, message: 'API endpoint not found' });
     }
 });
 
