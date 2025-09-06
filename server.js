@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const { MongoClient } = require('mongodb');
 const fetch = require('node-fetch');
 const crypto = require('crypto');
+const path = require('path');
 
 const app = express();
 
@@ -14,7 +15,6 @@ const allowedOrigins = [
   'https://reliable-cendol-97b021.netlify.app',
   'http://localhost:8888',
   'http://localhost:3000',
-  'https://bitcoingelato.github.io', // Add your GitHub Pages URL if you're hosting there
 ];
 app.use(cors({
   origin: function(origin, callback){
@@ -27,12 +27,15 @@ app.use(cors({
   },
   credentials: true
 }));
+
+// Middleware
 app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public'))); // Serve static files from 'public' directory
 
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017";
 const DB_NAME = process.env.DB_NAME || "casino";
-const HCAPTCHA_SECRET = process.env.HCAPTCHA_SECRET || "your-hcaptcha-secret";
+const HCAPTCHA_SECRET = process.env.HCAPTCHA_SECRET || "b1e64024-155e-43da-a5e6-9b56729c337e";
 
 let db, usersCollection, crashCollection, coinflipCollection, rouletteCollection, pokerCollection, seedsCollection;
 let dbReady = false;
@@ -59,9 +62,6 @@ app.use((req, res, next) => {
     if (!dbReady) return res.status(503).json({ success: false, message: "Database not connected." });
     next();
 });
-
-// Serve static files from the public directory
-app.use(express.static('public'));
 
 function authenticateToken(req, res, next) {
     const auth = req.headers['authorization'];
@@ -137,22 +137,20 @@ async function rotateUserSeeds(username, gameType) {
 app.post('/api/signup', async (req, res) => {
     try {
         const { username, email, password, captchaToken } = req.body;
-        if (!username || !email || !password) {
+        if (!username || !email || !password || !captchaToken) {
             return res.json({ success: false, message: "Missing fields" });
         }
         if (password.length < 6) return res.json({ success: false, message: "Password too short" });
         if (await usersCollection.findOne({ username })) return res.json({ success: false, message: "Username taken" });
         if (await usersCollection.findOne({ email })) return res.json({ success: false, message: "Email taken" });
 
-        // hCaptcha verification (server-side) - skip if in development mode
-        if (process.env.NODE_ENV !== 'development' && captchaToken) {
-            const captchaResponse = await fetch('https://hcaptcha.com/siteverify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `secret=${HCAPTCHA_SECRET}&response=${captchaToken}`
-            }).then(r => r.json());
-            if (!captchaResponse.success) return res.json({ success: false, message: "Invalid CAPTCHA" });
-        }
+        // hCaptcha verification (server-side)
+        const captchaResponse = await fetch('https://hcaptcha.com/siteverify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `secret=${HCAPTCHA_SECRET}&response=${captchaToken}`
+        }).then(r => r.json());
+        if (!captchaResponse.success) return res.json({ success: false, message: "Invalid CAPTCHA" });
 
         const hash = await bcrypt.hash(password, 10);
         await usersCollection.insertOne({
@@ -177,19 +175,16 @@ app.post('/api/signup', async (req, res) => {
 app.post('/api/login', async (req, res) => {
     try {
         const { username, password, captchaToken } = req.body;
-        if (!username || !password) {
+        if (!username || !password || !captchaToken) {
             return res.json({ success: false, message: "Missing fields" });
         }
-        
-        // hCaptcha verification (server-side) - skip if in development mode
-        if (process.env.NODE_ENV !== 'development' && captchaToken) {
-            const captchaResponse = await fetch('https://hcaptcha.com/siteverify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `secret=${HCAPTCHA_SECRET}&response=${captchaToken}`
-            }).then(r => r.json());
-            if (!captchaResponse.success) return res.json({ success: false, message: "Invalid CAPTCHA" });
-        }
+        // hCaptcha verification (server-side)
+        const captchaResponse = await fetch('https://hcaptcha.com/siteverify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `secret=${HCAPTCHA_SECRET}&response=${captchaToken}`
+        }).then(r => r.json());
+        if (!captchaResponse.success) return res.json({ success: false, message: "Invalid CAPTCHA" });
 
         const user = await usersCollection.findOne({ username });
         if (!user) return res.json({ success: false, message: "User not found" });
@@ -322,7 +317,7 @@ async function startCrashRound() {
     crashState.crashAt = crashPoint;
     crashState.seedHash = hash;
     crashState.revealedSeed = null;
-    crashState.bets = {}; // Reset bets for new round
+    crashState.bets = {}; // Clear previous bets
 
     // Store round info in database
     await crashCollection.insertOne({
@@ -343,7 +338,6 @@ async function startCrashRound() {
         crashState.multiplier = multiplierInCents / 100;
 
         if (crashState.multiplier >= crashState.crashAt) {
-            clearInterval(interval);
             crashState.status = 'crashed';
             crashState.revealedSeed = seed;
             
@@ -375,6 +369,7 @@ async function startCrashRound() {
             // Start countdown for next round
             setTimeout(startCrashRound, 9000);
             
+            clearInterval(interval);
             console.log(`Crash round ${crashState.roundId} ended at ${crashState.crashAt}x`);
         }
     }, 20);
@@ -485,7 +480,7 @@ app.post('/api/crash/cashout', authenticateToken, async (req, res) => {
     
     bet.cashedOut = true;
     bet.cashedAt = crashState.multiplier;
-    const payout = parseFloat((bet.amount * crashState.multiplier).toFixed(2));
+    const payout = parseFloat((bet.amount * crashState.multiplier).toFixed(8));
     
     // Add winnings to user balance
     await usersCollection.updateOne({ username: user.username }, { $inc: { balance: payout } });
@@ -507,13 +502,15 @@ app.post('/api/crash/cashout', authenticateToken, async (req, res) => {
     res.json({ success: true, payout, multiplier: crashState.multiplier });
 });
 
-app.get('/api/crash/history', authenticateToken, async (req, res) => {
+// Get crash history
+app.get('/api/crash/history', async (req, res) => {
     try {
         const history = await crashCollection
-            .find({}, { projection: { _id: 0, roundId: 1, crashAt: 1, created: 1, seed: 1, seedHash: 1 } })
+            .find({}, { projection: { _id: 0, roundId: 1, crashAt: 1, created: 1 } })
             .sort({ roundId: -1 })
             .limit(20)
             .toArray();
+            
         res.json({ success: true, history });
     } catch (e) {
         res.json({ success: false, message: e.message });
@@ -762,108 +759,9 @@ app.get('/api/history/:game', authenticateToken, async (req, res) => {
     res.json({ success: true, history: results });
 });
 
-// ------ PROFILE API ------
-
-// Get a user's public profile & stats
-app.get('/api/profile/:username', async (req, res) => {
-    const username = req.params.username;
-    const user = await usersCollection.findOne({ username });
-    if (!user) return res.json({ success: false, message: "User not found" });
-    // Stats from history
-    let crash = await crashCollection.find({ "bets.username": username }).toArray();
-    let crashProfit = 0, crashBets = 0;
-    crash.forEach(round => {
-        (round.bets||[]).forEach(b => {
-            if (b.username === username) {
-                crashBets += b.amount || 0;
-                if (b.cashedOut) crashProfit += b.payout || 0;
-            }
-        });
-    });
-    let coinflip = await coinflipCollection.find({ username }).toArray();
-    let cfBets = 0, cfProfit = 0;
-    coinflip.forEach(r => { cfBets += r.amount||0; cfProfit += r.payout||0; });
-    let roulette = await rouletteCollection.find({ username }).toArray();
-    let roulBets = 0, roulProfit = 0;
-    roulette.forEach(r => { roulBets += r.amount||0; roulProfit += r.payout||0; });
-    let poker = await pokerCollection.find({ username }).toArray();
-    let pokerBets = 0, pokerProfit = 0;
-    poker.forEach(r => { pokerBets += r.amount||0; pokerProfit += r.payout||0; });
-    const stats = {
-        username: user.username,
-        created: user.created,
-        balance: user.balance,
-        crash: { totalBets: crashBets, totalProfit: crashProfit, net: crashProfit-crashBets },
-        coinflip: { totalBets: cfBets, totalProfit: cfProfit, net: cfProfit-cfBets },
-        roulette: { totalBets: roulBets, totalProfit: roulProfit, net: roulProfit-roulBets },
-        poker: { totalBets: pokerBets, totalProfit: pokerProfit, net: pokerProfit-pokerBets },
-        overall: {
-            totalBets: crashBets+cfBets+roulBets+pokerBets,
-            totalProfit: crashProfit+cfProfit+roulProfit+pokerProfit,
-            net: (crashProfit+cfProfit+roulProfit+pokerProfit) - (crashBets+cfBets+roulBets+pokerBets)
-        }
-    };
-    res.json({ success: true, stats });
-});
-
-// Search for usernames (simple match)
-app.get('/api/profiles/search', async (req, res) => {
-    const query = req.query.query || '';
-    if (!query) return res.json({ success: false, message: "No query" });
-    const users = await usersCollection.find({ username: { $regex: query, $options: "i" } }).limit(10).project({ username: 1 }).toArray();
-    res.json({ success: true, users });
-});
-
-// ------ CHATBOX API ------
-
-// Get latest 50 messages (newest last)
-app.get('/api/chat', async (req, res) => {
-    try {
-        const messages = await db.collection('chat_messages')
-            .find({})
-            .sort({ timestamp: -1 })
-            .limit(50)
-            .toArray();
-        res.json({ success: true, messages: messages.reverse() });
-    } catch (e) {
-        res.json({ success: false, message: 'Error fetching chat.' });
-    }
-});
-
-// Post a new chat message (requires login)
-app.post('/api/chat', authenticateToken, async (req, res) => {
-    try {
-        const username = req.user?.username;
-        if (!username) return res.status(401).json({ success: false, message: "Not logged in." });
-        const { message } = req.body;
-        if (!message || typeof message !== "string" || !message.trim()) {
-            return res.status(400).json({ success: false, message: "Message cannot be empty." });
-        }
-        const cleanMsg = message.slice(0, 300);
-        await db.collection('chat_messages').insertOne({
-            username,
-            message: cleanMsg,
-            timestamp: new Date()
-        });
-        res.json({ success: true });
-    } catch (e) {
-        res.json({ success: false, message: 'Error posting chat.' });
-    }
-});
-
-// Root endpoint to serve the index.html file
+// Serve index.html for root route
 app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/index.html');
-});
-
-// Catch-all route to serve index.html for client-side routing
-app.get('*', (req, res) => {
-    // Exclude API routes from catch-all
-    if (!req.path.startsWith('/api/')) {
-        res.sendFile(__dirname + '/index.html');
-    } else {
-        res.status(404).json({ success: false, message: 'API endpoint not found' });
-    }
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // ------ START ------
